@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  gateway:
+    build: ./gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - PATIENT_SERVICE_URL=http://patient-service:3001
+      - DOCTOR_SERVICE_URL=http://doctor-service:3002
+      - APPOINTMENT_SERVICE_URL=http://appointment-service:3003
+      - TELEMEDICINE_SERVICE_URL=http://telemedicine-service:3004
+      - PAYMENT_SERVICE_URL=http://payment-service:3005
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3006
+      - AI_SERVICE_URL=http://ai-service:3007
+      - JWT_SECRET=smarthealthcare_supersecret_key
+    depends_on:
+      - patient-service
+      - doctor-service
+      - appointment-service
+
+  patient-service:
+    build: ./patient-service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
+      - JWT_SECRET=smarthealthcare_supersecret_key
+  doctor-service:
+    build: ./doctor-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
+      - JWT_SECRET=smarthealthcare_supersecret_key
+
+  appointment-service:
+    build: ./appointment-service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
+
+  telemedicine-service:
+    build: ./telemedicine-service
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+
+  payment-service:
+    build: ./payment-service
+    ports:
+      - "3005:3005"
+    environment:
+      - PORT=3005
+
+  notification-service:
+    build: ./notification-service
+    ports:
+      - "3006:3006"
+    environment:
+      - PORT=3006
+
+  ai-service:
+    build: ./ai-service
+    ports:
+      - "3007:3007"
+    environment:
+      - PORT=3007

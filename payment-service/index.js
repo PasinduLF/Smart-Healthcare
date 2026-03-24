@@ -1,0 +1,68 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock');
+const mongoose = require('mongoose');
+
+const app = express();
+const PORT = process.env.PORT || 3005;
+
+app.use(cors());
+app.use(express.json());
+
+mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0')
+    .then(() => console.log('Payment Service connected to MongoDB'))
+    .catch(err => console.error('MongoDB connection error:', err));
+
+const transactionSchema = new mongoose.Schema({
+    amount: { type: Number, required: true },
+    currency: { type: String, default: 'usd' },
+    description: { type: String, required: true },
+    status: { type: String, default: 'success' },
+    date: { type: Date, default: Date.now }
+});
+const Transaction = mongoose.model('Transaction', transactionSchema);
+
+app.post('/create-checkout-session', async (req, res) => {
+    const { amount, currency, description } = req.body;
+
+    try {
+        const transaction = new Transaction({ amount, currency: currency || 'usd', description });
+        await transaction.save();
+
+    if (process.env.STRIPE_SECRET_KEY === undefined || process.env.STRIPE_SECRET_KEY === 'sk_test_mock') {
+        // Return Mock URL
+        return res.json({ url: 'http://localhost:5173/payment-success-mock' });
+    }
+
+    try {
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [{
+                price_data: { currency: currency || 'usd', product_data: { name: description }, unit_amount: amount },
+                quantity: 1,
+            }],
+            mode: 'payment',
+            success_url: 'http://localhost:5173/success',
+            cancel_url: 'http://localhost:5173/cancel',
+        });
+        res.json({ id: session.id, url: session.url });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/transactions', async (req, res) => {
+    try {
+        const txs = await Transaction.find().sort({ date: -1 });
+        res.json(txs);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/health', (req, res) => {
+    res.json({ status: 'Payment Service is running' });
+});
+
+app.listen(PORT, () => console.log(`Payment Service listening on port ${PORT}`));
