@@ -13,6 +13,7 @@ export default function PatientDashboard() {
     const location = useLocation();
     const [doctors, setDoctors] = useState([]);
     const [doctorMap, setDoctorMap] = useState({});
+    const [doctorAvailabilityMap, setDoctorAvailabilityMap] = useState({});
     const [appointments, setAppointments] = useState([]);
     const [healthProfile, setHealthProfile] = useState({ vitals: { bloodPressure: '', heartRate: '', weight: '', height: '' }, allergies: [], reports: [] });
     const [loading, setLoading] = useState(false);
@@ -41,6 +42,10 @@ export default function PatientDashboard() {
                 setDoctors(docRes.data);
                 setDoctorMap(docRes.data.reduce((acc, doc) => {
                     acc[doc._id] = doc.name;
+                    return acc;
+                }, {}));
+                setDoctorAvailabilityMap(docRes.data.reduce((acc, doc) => {
+                    acc[doc._id] = doc.availability;
                     return acc;
                 }, {}));
                 
@@ -259,6 +264,7 @@ export default function PatientDashboard() {
                             <MyAppointments
                                 appointments={appointments}
                                 doctorMap={doctorMap}
+                                doctorAvailabilityMap={doctorAvailabilityMap}
                                 rescheduleData={rescheduleData}
                                 setRescheduleData={setRescheduleData}
                                 handleReschedule={handleReschedule}
