@@ -6,6 +6,7 @@ import VideoCall from '../components/VideoCall';
 import { useNavigate, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import BookAppointment from './BookAppointment';
 import MyAppointments from './MyAppointments';
+import PatientPaymentService from './PatientPaymentService';
 
 export default function PatientDashboard() {
     const { user, token, logout } = useAuth();
@@ -257,6 +258,8 @@ export default function PatientDashboard() {
                     } />
 
                     <Route path="book/:doctorId" element={<BookAppointment />} />
+
+                    <Route path="payment" element={<PatientPaymentService />} />
 
                     <Route
                         path="appointments"
