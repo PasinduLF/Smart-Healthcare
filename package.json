@@ -1,0 +1,24 @@
+{
+  "name": "smart-healthcare",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "gateway",
+    "patient-service",
+    "doctor-service",
+    "appointment-service",
+    "telemedicine-service",
+    "payment-service",
+    "notification-service",
+    "ai-service",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev:frontend",
+    "install:all": "npm install --workspaces",
+    "dev:frontend": "npm --workspace frontend run dev",
+    "start:gateway": "npm --workspace gateway start",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down"
+  }
+}

@@ -1,8 +1,7 @@
-version: '3.8'
-
 services:
   gateway:
     build: ./gateway
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
@@ -19,9 +18,14 @@ services:
       - patient-service
       - doctor-service
       - appointment-service
+      - telemedicine-service
+      - payment-service
+      - notification-service
+      - ai-service
 
   patient-service:
     build: ./patient-service
+    restart: unless-stopped
     ports:
       - "3001:3001"
     environment:
@@ -30,6 +34,7 @@ services:
       - JWT_SECRET=smarthealthcare_supersecret_key
   doctor-service:
     build: ./doctor-service
+    restart: unless-stopped
     ports:
       - "3002:3002"
     environment:
@@ -39,14 +44,17 @@ services:
 
   appointment-service:
     build: ./appointment-service
+    restart: unless-stopped
     ports:
       - "3003:3003"
     environment:
       - PORT=3003
       - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3006
 
   telemedicine-service:
     build: ./telemedicine-service
+    restart: unless-stopped
     ports:
       - "3004:3004"
     environment:
@@ -54,6 +62,7 @@ services:
 
   payment-service:
     build: ./payment-service
+    restart: unless-stopped
     ports:
       - "3005:3005"
     environment:
@@ -61,14 +70,41 @@ services:
 
   notification-service:
     build: ./notification-service
+    restart: unless-stopped
     ports:
       - "3006:3006"
     environment:
       - PORT=3006
+      - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
+      - PATIENT_SERVICE_URL=http://patient-service:3001
+      - DOCTOR_SERVICE_URL=http://doctor-service:3002
+      # Email (leave blank to use Ethereal test mode)
+      - SMTP_HOST=
+      - SMTP_PORT=587
+      - SMTP_USER=
+      - SMTP_PASS=
+      - FROM_EMAIL=SmartHealth Care <noreply@smarthealthcare.com>
+      # Twilio SMS (leave blank to use mock/console mode)
+      - TWILIO_ACCOUNT_SID=
+      - TWILIO_AUTH_TOKEN=
+      - TWILIO_PHONE_NUMBER=
 
   ai-service:
     build: ./ai-service
+    restart: unless-stopped
     ports:
       - "3007:3007"
     environment:
       - PORT=3007
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/public:/app/public
+    depends_on:
+      - gateway
