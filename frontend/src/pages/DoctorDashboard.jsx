@@ -80,7 +80,7 @@ export default function DoctorDashboard() {
     const [prescriptions, setPrescriptions] = useState([]);
     const [newScript, setNewScript] = useState({ patientId: '', medication: '', instructions: '' });
 
-    const [profileData, setProfileData] = useState({ name: '', specialization: '', experience: 0 });
+    const [profileData, setProfileData] = useState({ name: '', specialization: '', experience: 0, consultationFee: 0 });
     const [weeklyAvailability, setWeeklyAvailability] = useState(buildDefaultAvailability);
     const [selectedPatient, setSelectedPatient] = useState(null);
 
@@ -99,7 +99,8 @@ export default function DoctorDashboard() {
                 setProfileData({
                     name: profRes.data.name || '',
                     specialization: profRes.data.specialty || profRes.data.specialization || '',
-                    experience: profRes.data.experience || 0
+                    experience: profRes.data.experience || 0,
+                    consultationFee: Number.isFinite(Number(profRes.data.consultationFee)) ? Number(profRes.data.consultationFee) : 0
                 });
                 setWeeklyAvailability(normalizeAvailability(profRes.data.availability));
             } catch (err) { console.error("Error fetching doctor data", err); }
@@ -264,6 +265,16 @@ export default function DoctorDashboard() {
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-700">Years of Experience</label>
                                     <input type="number" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" value={profileData.experience} onChange={e => setProfileData({...profileData, experience: parseInt(e.target.value) || 0})} />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700">Pre-Appointment Price (LKR)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                                        value={profileData.consultationFee}
+                                        onChange={e => setProfileData({...profileData, consultationFee: Number(e.target.value) || 0})}
+                                    />
                                 </div>
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">

@@ -25,6 +25,7 @@ const doctorSchema = new mongoose.Schema({
     password: { type: String, required: true },
     specialty: { type: String, required: true },
     experience: { type: Number, default: 0 },
+    consultationFee: { type: Number, default: 0 },
     availability: { type: Array, default: [] },
     verified: { type: Boolean, default: false },
     maxPatients: { type: Number, default: 10 },
@@ -109,7 +110,7 @@ app.get('/profile/:id', async (req, res) => {
 
 app.put('/profile/:id', async (req, res) => {
     try {
-        const { name, specialty, specialization, experience, availability } = req.body;
+        const { name, specialty, specialization, experience, availability, consultationFee } = req.body;
 
         const update = {};
         if (typeof name === 'string') update.name = name;
@@ -118,6 +119,9 @@ app.put('/profile/:id', async (req, res) => {
 
         const parsedExperience = Number.isFinite(Number(experience)) ? Number(experience) : undefined;
         if (parsedExperience !== undefined) update.experience = parsedExperience;
+
+        const parsedFee = Number.isFinite(Number(consultationFee)) ? Number(consultationFee) : undefined;
+        if (parsedFee !== undefined) update.consultationFee = parsedFee;
 
         if (availability !== undefined) update.availability = parseAvailability(availability);
 
