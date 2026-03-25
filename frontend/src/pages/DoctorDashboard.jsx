@@ -5,6 +5,72 @@ import { useAuth } from '../context/AuthContext';
 import VideoCall from '../components/VideoCall';
 import { useNavigate, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 
+const dayOptions = [
+    { key: 'Mon', label: 'Monday' },
+    { key: 'Tue', label: 'Tuesday' },
+    { key: 'Wed', label: 'Wednesday' },
+    { key: 'Thu', label: 'Thursday' },
+    { key: 'Fri', label: 'Friday' },
+    { key: 'Sat', label: 'Saturday' },
+    { key: 'Sun', label: 'Sunday' }
+];
+
+const timeOptions = Array.from({ length: 48 }, (_, index) => {
+    const totalMinutes = index * 30;
+    const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+    const minutes = String(totalMinutes % 60).padStart(2, '0');
+    return `${hours}:${minutes}`;
+});
+
+const buildDefaultAvailability = () => dayOptions.map((day) => ({ day: day.key, slots: [] }));
+
+const normalizeDayKey = (value) => {
+    if (!value) return null;
+    const key = String(value).trim().toLowerCase();
+    const map = {
+        mon: 'Mon', monday: 'Mon',
+        tue: 'Tue', tuesday: 'Tue',
+        wed: 'Wed', wednesday: 'Wed',
+        thu: 'Thu', thursday: 'Thu',
+        fri: 'Fri', friday: 'Fri',
+        sat: 'Sat', saturday: 'Sat',
+        sun: 'Sun', sunday: 'Sun'
+    };
+    return map[key] || null;
+};
+
+const normalizeAvailability = (raw) => {
+    const base = buildDefaultAvailability();
+    if (!raw) return base;
+
+    let parsed = raw;
+    if (typeof raw === 'string') {
+        try {
+            parsed = JSON.parse(raw);
+        } catch (err) {
+            return base;
+        }
+    }
+
+    if (!Array.isArray(parsed)) return base;
+
+    const slotMap = new Map();
+    parsed.forEach((entry) => {
+        const dayKey = normalizeDayKey(entry?.day);
+        if (!dayKey) return;
+        const slots = Array.isArray(entry?.slots) ? entry.slots.map((slot) => ({
+            start: typeof slot?.start === 'string' ? slot.start : '',
+            end: typeof slot?.end === 'string' ? slot.end : ''
+        })) : [];
+        slotMap.set(dayKey, slots);
+    });
+
+    return base.map((day) => ({
+        ...day,
+        slots: slotMap.get(day.day) || []
+    }));
+};
+
 export default function DoctorDashboard() {
     const { user, token, logout } = useAuth();
     const navigate = useNavigate();
@@ -14,7 +80,8 @@ export default function DoctorDashboard() {
     const [prescriptions, setPrescriptions] = useState([]);
     const [newScript, setNewScript] = useState({ patientId: '', medication: '', instructions: '' });
 
-    const [profileData, setProfileData] = useState({ name: '', specialization: '', experience: 0, availability: '' });
+    const [profileData, setProfileData] = useState({ name: '', specialization: '', experience: 0 });
+    const [weeklyAvailability, setWeeklyAvailability] = useState(buildDefaultAvailability);
     const [selectedPatient, setSelectedPatient] = useState(null);
 
     useEffect(() => {
@@ -32,9 +99,9 @@ export default function DoctorDashboard() {
                 setProfileData({
                     name: profRes.data.name || '',
                     specialization: profRes.data.specialty || profRes.data.specialization || '',
-                    experience: profRes.data.experience || 0,
-                    availability: profRes.data.availability || ''
+                    experience: profRes.data.experience || 0
                 });
+                setWeeklyAvailability(normalizeAvailability(profRes.data.availability));
             } catch (err) { console.error("Error fetching doctor data", err); }
         };
         fetchAll();
@@ -53,7 +120,11 @@ export default function DoctorDashboard() {
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
         try {
-            await axios.put(`http://localhost:3000/api/doctors/profile/${user.id}`, profileData, {
+            const payload = {
+                ...profileData,
+                availability: weeklyAvailability
+            };
+            await axios.put(`http://localhost:3000/api/doctors/profile/${user.id}`, payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             alert("Profile & Availability updated successfully!");
@@ -61,6 +132,33 @@ export default function DoctorDashboard() {
             console.error(err);
             alert("Failed to update profile");
         }
+    };
+
+    const addSlot = (dayKey) => {
+        setWeeklyAvailability((prev) => prev.map((day) => day.day === dayKey
+            ? { ...day, slots: [...day.slots, { start: '', end: '' }] }
+            : day
+        ));
+    };
+
+    const updateSlot = (dayKey, index, field, value) => {
+        setWeeklyAvailability((prev) => prev.map((day) => {
+            if (day.day !== dayKey) return day;
+            return {
+                ...day,
+                slots: day.slots.map((slot, slotIndex) => slotIndex === index
+                    ? { ...slot, [field]: value }
+                    : slot
+                )
+            };
+        }));
+    };
+
+    const removeSlot = (dayKey, index) => {
+        setWeeklyAvailability((prev) => prev.map((day) => day.day === dayKey
+            ? { ...day, slots: day.slots.filter((_, slotIndex) => slotIndex !== index) }
+            : day
+        ));
     };
 
     const viewPatientProfile = async (patientId) => {
@@ -167,9 +265,74 @@ export default function DoctorDashboard() {
                                     <label className="text-sm font-medium text-gray-700">Years of Experience</label>
                                     <input type="number" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" value={profileData.experience} onChange={e => setProfileData({...profileData, experience: parseInt(e.target.value) || 0})} />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-gray-700">Daily Availability (ex. Mon-Fri 9AM-5PM)</label>
-                                    <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" value={profileData.availability} onChange={e => setProfileData({...profileData, availability: e.target.value})} />
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-sm font-medium text-gray-700">Weekly Availability</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setWeeklyAvailability(buildDefaultAvailability())}
+                                            className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                        >
+                                            Clear All
+                                        </button>
+                                    </div>
+                                    <div className="space-y-4">
+                                        {dayOptions.map((day) => {
+                                            const dayData = weeklyAvailability.find((entry) => entry.day === day.key) || { day: day.key, slots: [] };
+                                            return (
+                                                <div key={day.key} className="p-4 border rounded-xl bg-white/60">
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="font-medium text-gray-700">{day.label}</p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => addSlot(day.key)}
+                                                            className="text-xs px-3 py-1 rounded-full bg-teal-50 text-teal-700 hover:bg-teal-100"
+                                                        >
+                                                            Add Time
+                                                        </button>
+                                                    </div>
+                                                    {dayData.slots.length === 0 ? (
+                                                        <p className="text-xs text-gray-500 mt-3">No time slots added.</p>
+                                                    ) : (
+                                                        <div className="mt-3 space-y-2">
+                                                            {dayData.slots.map((slot, index) => (
+                                                                <div key={`${day.key}-${index}`} className="flex flex-wrap items-center gap-2">
+                                                                    <select
+                                                                        className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                                                                        value={slot.start}
+                                                                        onChange={(e) => updateSlot(day.key, index, 'start', e.target.value)}
+                                                                    >
+                                                                        <option value="">Start</option>
+                                                                        {timeOptions.map((time) => (
+                                                                            <option key={`start-${time}`} value={time}>{time}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <span className="text-gray-400">to</span>
+                                                                    <select
+                                                                        className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                                                                        value={slot.end}
+                                                                        onChange={(e) => updateSlot(day.key, index, 'end', e.target.value)}
+                                                                    >
+                                                                        <option value="">End</option>
+                                                                        {timeOptions.map((time) => (
+                                                                            <option key={`end-${time}`} value={time}>{time}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => removeSlot(day.key, index)}
+                                                                        className="text-xs px-3 py-1 rounded-full bg-red-50 text-red-600 hover:bg-red-100"
+                                                                    >
+                                                                        Remove
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                                 <button type="submit" className="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition font-medium">Save Settings</button>
                             </form>
