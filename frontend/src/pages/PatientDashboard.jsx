@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import VideoCall from '../components/VideoCall';
 import { useNavigate, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import BookAppointment from './BookAppointment';
 
 export default function PatientDashboard() {
     const { user, token, logout } = useAuth();
@@ -63,22 +64,9 @@ export default function PatientDashboard() {
         fetchAll();
     }, [token, user]);
 
-    const handleBookAppointment = async (doctorId) => {
+    const handleBookAppointment = (doctorId) => {
         if (!user || !token) return alert('Please login first');
-        try {
-            await axios.post('http://localhost:3000/api/appointments/book', {
-                patientId: user.id,
-                doctorId,
-                date: new Date().toISOString().split('T')[0], // Mock date
-                time: '10:00 AM' // Mock time
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            alert('Appointment booked successfully!');
-        } catch (err) {
-            console.error(err);
-            alert('Failed to book appointment');
-        }
+        navigate(`/patient/book/${doctorId}`);
     };
 
     const handleCancelAppointment = async (apptId) => {
@@ -256,6 +244,8 @@ export default function PatientDashboard() {
                             </div>
                         </div>
                     } />
+
+                    <Route path="book/:doctorId" element={<BookAppointment />} />
 
                     <Route path="appointments" element={
                         <div>
