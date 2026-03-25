@@ -14,9 +14,8 @@ export default function AdminDashboard() {
     useEffect(() => {
         // Fetch Admin Stats
         const fetchStats = async () => {
-            if (!token) return;
             try {
-                const config = { headers: { Authorization: `Bearer ${token}` } };
+                const config = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
                 const [pRes, dRes, aRes] = await Promise.all([
                     axios.get('http://localhost:3000/api/patients/stats', config),
                     axios.get('http://localhost:3000/api/doctors/stats', config),
@@ -33,11 +32,9 @@ export default function AdminDashboard() {
         };
 
         const fetchPending = async () => {
-            if (!token) return;
             try {
-                const res = await axios.get('http://localhost:3000/api/doctors/pending', {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                const config = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
+                const res = await axios.get('http://localhost:3000/api/doctors/pending', config);
                 setPendingDoctors(res.data);
             } catch (err) {
                 console.error("Error fetching pending doctors", err);
@@ -45,8 +42,8 @@ export default function AdminDashboard() {
         };
 
         const fetchTransactions = async () => {
-            if (!token) return;
             try {
+                if (!token) return;
                 const res = await axios.get('http://localhost:3000/api/payments/transactions', {
                     headers: { Authorization: `Bearer ${token}` }
                 });
