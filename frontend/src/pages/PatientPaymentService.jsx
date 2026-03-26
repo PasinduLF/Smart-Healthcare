@@ -53,16 +53,36 @@ export default function PatientPaymentService() {
 
 		setPaying(true);
 		try {
-			await axios.post('http://localhost:3000/api/appointments/book', {
+			const res = await axios.post('http://localhost:3000/api/payments/payhere/checkout', {
 				patientId: user.id,
 				doctorId,
 				date,
-				time
+				time,
+				amount: consultationFee,
+				currency: 'LKR',
+				doctorName,
+				customerName: user?.name || 'Patient',
+				customerEmail: user?.email || 'patient@example.com',
+				customerPhone: user?.contactNumber || '0000000000'
 			}, {
 				headers: { Authorization: `Bearer ${token}` }
 			});
-			alert('Payment successful! Appointment confirmed.');
-			navigate('/patient/appointments');
+
+			const { actionUrl, fields } = res.data || {};
+			if (!actionUrl || !fields) throw new Error('Invalid PayHere response');
+
+			const form = document.createElement('form');
+			form.method = 'POST';
+			form.action = actionUrl;
+			Object.entries(fields).forEach(([key, value]) => {
+				const input = document.createElement('input');
+				input.type = 'hidden';
+				input.name = key;
+				input.value = String(value ?? '');
+				form.appendChild(input);
+			});
+			document.body.appendChild(form);
+			form.submit();
 		} catch (err) {
 			console.error(err);
 			alert('Payment failed. Please try again.');

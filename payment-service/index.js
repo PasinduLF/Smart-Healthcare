@@ -3,12 +3,15 @@ const express = require('express');
 const cors = require('cors');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock');
 const mongoose = require('mongoose');
+const crypto = require('crypto');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3005;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0')
     .then(() => console.log('Payment Service connected to MongoDB'))
@@ -23,6 +26,25 @@ const transactionSchema = new mongoose.Schema({
 });
 const Transaction = mongoose.model('Transaction', transactionSchema);
 
+const pendingPaymentSchema = new mongoose.Schema({
+    orderId: { type: String, required: true, unique: true },
+    patientId: { type: String, required: true },
+    doctorId: { type: String, required: true },
+    date: { type: String, required: true },
+    time: { type: String, required: true },
+    amount: { type: Number, required: true },
+    currency: { type: String, default: 'LKR' },
+    status: { type: String, default: 'pending' },
+    createdAt: { type: Date, default: Date.now }
+});
+const PendingPayment = mongoose.model('PendingPayment', pendingPaymentSchema);
+
+const buildPayHereHash = (merchantId, orderId, amount, currency, merchantSecret) => {
+    const secretHash = crypto.createHash('md5').update(merchantSecret || '').digest('hex').toUpperCase();
+    const hashInput = `${merchantId}${orderId}${amount}${currency}${secretHash}`;
+    return crypto.createHash('md5').update(hashInput).digest('hex').toUpperCase();
+};
+
 app.post('/create-checkout-session', async (req, res) => {
     const { amount, currency, description } = req.body;
 
@@ -30,12 +52,10 @@ app.post('/create-checkout-session', async (req, res) => {
         const transaction = new Transaction({ amount, currency: currency || 'usd', description });
         await transaction.save();
 
-    if (process.env.STRIPE_SECRET_KEY === undefined || process.env.STRIPE_SECRET_KEY === 'sk_test_mock') {
-        // Return Mock URL
-        return res.json({ url: 'http://localhost:5173/payment-success-mock' });
-    }
+        if (process.env.STRIPE_SECRET_KEY === undefined || process.env.STRIPE_SECRET_KEY === 'sk_test_mock') {
+            return res.json({ url: 'http://localhost:5173/payment-success-mock' });
+        }
 
-    try {
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: [{
@@ -49,6 +69,128 @@ app.post('/create-checkout-session', async (req, res) => {
         res.json({ id: session.id, url: session.url });
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/payhere/checkout', async (req, res) => {
+    try {
+        const {
+            patientId,
+            doctorId,
+            date,
+            time,
+            amount,
+            currency,
+            doctorName,
+            customerName,
+            customerEmail,
+            customerPhone,
+            address,
+            city,
+            country
+        } = req.body;
+
+        if (!patientId || !doctorId || !date || !time) {
+            return res.status(400).json({ error: 'Missing appointment details' });
+        }
+
+        const merchantId = (process.env.PAYHERE_MERCHANT_ID || '1220000').trim();
+        const merchantSecret = (process.env.PAYHERE_MERCHANT_SECRET || '').trim();
+        const amountValue = Number(amount) || 0;
+        const amountFormatted = amountValue.toFixed(2);
+        const currencyValue = currency || 'LKR';
+        const orderId = `APPT-${Date.now()}`;
+
+        if (!merchantId || !merchantSecret) {
+            return res.status(400).json({ error: 'PayHere merchant credentials are missing' });
+        }
+
+        if (amountValue <= 0) {
+            return res.status(400).json({ error: 'Invalid payment amount' });
+        }
+
+        await new PendingPayment({
+            orderId,
+            patientId,
+            doctorId,
+            date,
+            time,
+            amount: amountValue,
+            currency: currencyValue
+        }).save();
+
+        const frontendBaseUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+        const notifyUrl = process.env.PAYHERE_NOTIFY_URL || 'http://localhost:3000/api/payments/payhere/notify';
+
+        const hash = buildPayHereHash(merchantId, orderId, amountFormatted, currencyValue, merchantSecret);
+
+        console.log('PayHere checkout prepared', {
+            orderId,
+            merchantId,
+            amount: amountFormatted,
+            currency: currencyValue,
+            hash
+        });
+
+        res.json({
+            actionUrl: 'https://sandbox.payhere.lk/pay/checkout',
+            fields: {
+                merchant_id: merchantId,
+                return_url: `${frontendBaseUrl}/patient/appointments`,
+                cancel_url: `${frontendBaseUrl}/patient/payment`,
+                notify_url: notifyUrl,
+                order_id: orderId,
+                items: `Consultation with ${doctorName || 'Doctor'}`,
+                currency: currencyValue,
+                amount: amountFormatted,
+                first_name: customerName || 'Patient',
+                last_name: 'User',
+                email: customerEmail || 'patient@example.com',
+                phone: customerPhone || '0000000000',
+                address: address || 'N/A',
+                city: city || 'Colombo',
+                country: country || 'Sri Lanka',
+                hash
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/payhere/notify', async (req, res) => {
+    try {
+        const { order_id: orderId, status_code: statusCode } = req.body;
+        if (!orderId) return res.status(400).send('Missing order_id');
+
+        const payment = await PendingPayment.findOne({ orderId });
+        if (!payment) return res.status(404).send('Order not found');
+
+        if (String(statusCode) === '2') {
+            payment.status = 'success';
+            await payment.save();
+
+            await axios.post('http://appointment-service:3003/book', {
+                patientId: payment.patientId,
+                doctorId: payment.doctorId,
+                date: payment.date,
+                time: payment.time
+            });
+
+            await new Transaction({
+                amount: Math.round(payment.amount * 100),
+                currency: payment.currency.toLowerCase(),
+                description: `PayHere payment for ${payment.orderId}`,
+                status: 'success'
+            }).save();
+        } else {
+            payment.status = 'failed';
+            await payment.save();
+        }
+
+        res.send('OK');
+    } catch (err) {
+        res.status(500).send('ERROR');
     }
 });
 
