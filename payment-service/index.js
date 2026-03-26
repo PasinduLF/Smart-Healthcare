@@ -136,7 +136,7 @@ app.post('/payhere/checkout', async (req, res) => {
             actionUrl: 'https://sandbox.payhere.lk/pay/checkout',
             fields: {
                 merchant_id: merchantId,
-                return_url: `${frontendBaseUrl}/patient/appointments`,
+                return_url: `${frontendBaseUrl}/patient/payment-success`,
                 cancel_url: `${frontendBaseUrl}/patient/payment`,
                 notify_url: notifyUrl,
                 order_id: orderId,

@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config/api';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const dayKeyFromDate = (dateStr) => {
     if (!dateStr) return null;
@@ -75,6 +75,7 @@ const buildSlotsForDay = (dayAvailability) => {
 export default function MyAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [appointments, setAppointments] = useState([]);
     const [doctorMap, setDoctorMap] = useState({});
     const [doctorAvailabilityMap, setDoctorAvailabilityMap] = useState({});
@@ -82,32 +83,42 @@ export default function MyAppointments({ setActiveCall }) {
     const [rescheduleData, setRescheduleData] = useState({ id: null, date: '', time: '' });
     const [doctorAppointments, setDoctorAppointments] = useState([]);
 
-    useEffect(() => {
-        const fetchAll = async () => {
-            if (!user?.id || !token) return;
-            try {
-                const [docRes, apptRes] = await Promise.all([
-                    axios.get(`${API_BASE_URL}/api/doctors/list`, { headers: { Authorization: `Bearer ${token}` } }),
-                    axios.get(`${API_BASE_URL}/api/appointments/patient/${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
-                ]);
+    const fetchAll = useCallback(async () => {
+        if (!user?.id || !token) return;
+        try {
+            const [docRes, apptRes] = await Promise.all([
+                axios.get(`${API_BASE_URL}/api/doctors/list`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_BASE_URL}/api/appointments/patient/${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
+            ]);
 
-                setAppointments(apptRes.data);
-                setDoctorMap(docRes.data.reduce((acc, doc) => {
-                    acc[doc._id] = doc.name;
-                    return acc;
-                }, {}));
-                setDoctorAvailabilityMap(docRes.data.reduce((acc, doc) => {
-                    acc[doc._id] = doc.availability;
-                    return acc;
-                }, {}));
-            } catch (err) {
-                console.error("Failed to fetch appointment data", err);
-            } finally {
-                setLoading(false);
-            }
-        };
+            setAppointments(apptRes.data);
+            setDoctorMap(docRes.data.reduce((acc, doc) => {
+                acc[doc._id] = doc.name;
+                return acc;
+            }, {}));
+            setDoctorAvailabilityMap(docRes.data.reduce((acc, doc) => {
+                acc[doc._id] = doc.availability;
+                return acc;
+            }, {}));
+        } catch (err) {
+            console.error("Failed to fetch appointment data", err);
+        } finally {
+            setLoading(false);
+        }
+    }, [token, user?.id]);
+
+    useEffect(() => {
         fetchAll();
-    }, [user, token]);
+    }, [fetchAll]);
+
+    useEffect(() => {
+        if (!location.state?.refresh) return;
+        setLoading(true);
+        fetchAll();
+        const retry = setTimeout(fetchAll, 2000);
+        navigate('/patient/appointments', { replace: true, state: {} });
+        return () => clearTimeout(retry);
+    }, [fetchAll, location.state, navigate]);
 
     const handleCancelAppointment = async (apptId) => {
         try {

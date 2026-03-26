@@ -25,6 +25,7 @@ import Telemedicine from './pages/patient/Telemedicine';
 import BookAppointment from './pages/BookAppointment';
 import MyAppointments from './pages/MyAppointments';
 import PatientPaymentService from './pages/PatientPaymentService';
+import PaymentSuccess from './pages/PaymentSuccess';
 
 // Doctor Pages
 import DoctorSchedule from './pages/doctor/DoctorSchedule';
@@ -64,6 +65,7 @@ function AppContent() {
                         <Route path="search" element={<SearchDoctors />} />
                         <Route path="book/:doctorId" element={<BookAppointment />} />
                         <Route path="payment" element={<PatientPaymentService />} />
+                        <Route path="payment-success" element={<PaymentSuccess />} />
                         <Route path="appointments" element={<MyAppointments setActiveCall={setActiveCall} />} />
                         <Route path="telemedicine" element={<Telemedicine activeCall={activeCall} setActiveCall={setActiveCall} />} />
                         <Route path="profile" element={<Profile />} />
