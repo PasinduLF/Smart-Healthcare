@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const dayKeyFromDate = (dateStr) => {
     if (!dateStr) return null;
@@ -89,7 +90,6 @@ export default function MyAppointments({ setActiveCall }) {
                     axios.get(`http://localhost:3000/api/appointments/patient/${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
                 ]);
 
-                setDoctors(docRes.data);
                 setAppointments(apptRes.data);
                 setDoctorMap(docRes.data.reduce((acc, doc) => {
                     acc[doc._id] = doc.name;
