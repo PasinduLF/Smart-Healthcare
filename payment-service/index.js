@@ -170,7 +170,8 @@ app.post('/payhere/notify', async (req, res) => {
             payment.status = 'success';
             await payment.save();
 
-            await axios.post('http://appointment-service:3003/book', {
+            const appointmentServiceUrl = process.env.APPOINTMENT_SERVICE_URL || 'http://appointment-service:3003';
+            await axios.post(`${appointmentServiceUrl}/book`, {
                 patientId: payment.patientId,
                 doctorId: payment.doctorId,
                 date: payment.date,

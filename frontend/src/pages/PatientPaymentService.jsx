@@ -3,6 +3,7 @@ import { ArrowLeft, CreditCard } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { API_BASE_URL } from '../config/api';
 
 const normalizeTime = (value) => {
 	if (!value) return '';
@@ -53,7 +54,7 @@ export default function PatientPaymentService() {
 
 		setPaying(true);
 		try {
-			const res = await axios.post('http://localhost:3000/api/payments/payhere/checkout', {
+			const res = await axios.post(`${API_BASE_URL}/api/payments/payhere/checkout`, {
 				patientId: user.id,
 				doctorId,
 				date,
