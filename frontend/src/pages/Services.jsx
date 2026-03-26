@@ -1,44 +1,53 @@
 import React from 'react';
 import { Search, Calendar, Video, Brain, Shield, Clock, Users, Database, Globe } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function Services() {
+    const { user } = useAuth();
+
     const serviceList = [
         {
             title: 'Specialist Search',
             icon: Search,
             desc: 'Browse through hundreds of verified medical specialists. Filter by experience, ratings, and real-time availability.',
-            features: ['Verified Credentials', 'Expert Ratings', 'Advanced Filtering']
+            features: ['Verified Credentials', 'Expert Ratings', 'Advanced Filtering'],
+            link: '/patient/search'
         },
         {
             title: 'Smart Appointments',
             icon: Calendar,
             desc: 'Book, reschedule, or cancel consultations instantly. Receive instant email and SMS confirmations.',
-            features: ['Instant Confirmations', 'Easy Rescheduling', 'Calendar Sync']
+            features: ['Instant Confirmations', 'Easy Rescheduling', 'Calendar Sync'],
+            link: '/patient/appointments'
         },
         {
             title: 'Telemedicine',
             icon: Video,
             desc: 'Experience high-definition video consultations with your doctor. Includes secure file sharing and integrated chat.',
-            features: ['HD Video Quality', 'Secure Chat', 'Document Sharing']
+            features: ['HD Video Quality', 'Secure Chat', 'Document Sharing'],
+            link: '/patient/telemedicine'
         },
         {
             title: 'AI Symptom Checker',
             icon: Brain,
             desc: 'Get an intelligent, structured assessment of your health symptoms using our Gemini 2.0-powered diagnostic engine.',
-            features: ['24/7 Availability', 'Context-Aware', 'Medical Reasoning']
+            features: ['24/7 Availability', 'Context-Aware', 'Medical Reasoning'],
+            link: '/patient/ai'
         },
         {
             title: 'Digital Health Records',
             icon: Database,
             desc: 'Securely store and manage your vitals, allergies, and medical reports in one centralized, encrypted portal.',
-            features: ['Encrypted Storage', 'Instant Access', 'Vitals Tracking']
+            features: ['Encrypted Storage', 'Instant Access', 'Vitals Tracking'],
+            link: '/patient/health'
         },
         {
             title: 'Global Health Network',
             icon: Globe,
             desc: 'Access a worldwide network of healthcare facilities and experts, ensuring you get the best second opinions.',
-            features: ['Second Opinions', 'International Experts', 'Seamless Transfers']
+            features: ['Second Opinions', 'International Experts', 'Seamless Transfers'],
+            link: '/patient/search'
         }
     ];
 
@@ -70,8 +79,8 @@ export default function Services() {
                                     </li>
                                 ))}
                             </ul>
-                            <Link to="/register" className="w-full py-4 text-center font-bold text-indigo-600 border border-indigo-100 rounded-2xl bg-indigo-50/50 hover:bg-indigo-600 hover:text-white transition-all">
-                                Learn More
+                            <Link to={user ? s.link : '/register'} className="w-full py-4 text-center font-bold text-indigo-600 border border-indigo-100 rounded-2xl bg-indigo-50/50 hover:bg-indigo-600 hover:text-white transition-all">
+                                {user ? 'Access Now' : 'Join to Explore'}
                             </Link>
                         </div>
                     ))}

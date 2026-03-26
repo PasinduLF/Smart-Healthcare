@@ -68,6 +68,12 @@ app.use('/api/telemedicine', authenticateToken, createProxyMiddleware({
 }));
 
 // Payment Service
+app.use('/api/payments/payhere/notify', createProxyMiddleware({
+    target: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3005',
+    changeOrigin: true,
+    pathRewrite: { '^/api/payments': '' } // Ensure it maps to /payhere/notify on target
+}));
+
 app.use('/api/payments', authenticateToken, createProxyMiddleware({
     target: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3005',
     changeOrigin: true,
