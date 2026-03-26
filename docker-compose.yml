@@ -60,8 +60,8 @@ services:
       - PORT=3005
       - PAYHERE_MERCHANT_ID=1234712
       - PAYHERE_MERCHANT_SECRET=MzY4OTk3MzM0NDE3NDA4MzAyNjEyNTA0MDYwMjIyMjMzNjQ5MjA=
-      - FRONTEND_BASE_URL=http://localhost:5173
-      - PAYHERE_NOTIFY_URL=http://localhost:3000/api/payments/payhere/notify
+      - FRONTEND_BASE_URL=https://smart-healthcare-ochre.vercel.app
+      - PAYHERE_NOTIFY_URL=https://smart-healthcare-payment.onrender.com/payhere/notify
 
   notification-service:
     build: ./notification-service
