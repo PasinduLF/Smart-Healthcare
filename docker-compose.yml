@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   gateway:
@@ -58,6 +58,10 @@ services:
       - "3005:3005"
     environment:
       - PORT=3005
+      - PAYHERE_MERCHANT_ID=1234712
+      - PAYHERE_MERCHANT_SECRET=MjEwMTE1MzE1MzI2MjIwNjQ0ODEzMjM4MDA3MzQ0MzIzNzU3NjczMw==
+      - FRONTEND_BASE_URL=http://localhost:5173
+      - PAYHERE_NOTIFY_URL=http://localhost:3000/api/payments/payhere/notify
 
   notification-service:
     build: ./notification-service

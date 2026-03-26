@@ -32,6 +32,21 @@ const timeToMinutes = (time) => {
 	return (parts[0] * 60) + parts[1];
 };
 
+const normalizeTime = (value) => {
+	if (!value) return '';
+	if (value.includes('AM') || value.includes('PM')) {
+		const [timePart, meridiem] = value.split(' ');
+		const [rawHours, rawMinutes] = timePart.split(':').map((part) => Number(part));
+		if (Number.isNaN(rawHours) || Number.isNaN(rawMinutes)) return '';
+		let hours = rawHours % 12;
+		if (meridiem.toUpperCase() === 'PM') hours += 12;
+		const formattedHours = String(hours).padStart(2, '0');
+		const formattedMinutes = String(rawMinutes).padStart(2, '0');
+		return `${formattedHours}:${formattedMinutes}`;
+	}
+	return value;
+};
+
 const minutesToTime = (minutes) => {
 	const hours = String(Math.floor(minutes / 60)).padStart(2, '0');
 	const mins = String(minutes % 60).padStart(2, '0');
@@ -63,6 +78,7 @@ export default function BookAppointment() {
 
 	const [doctor, setDoctor] = useState(null);
 	const [availability, setAvailability] = useState([]);
+	const [appointments, setAppointments] = useState([]);
 	const [selectedDate, setSelectedDate] = useState('');
 	const [selectedTime, setSelectedTime] = useState('');
 	const [loading, setLoading] = useState(true);
@@ -74,10 +90,14 @@ export default function BookAppointment() {
 		const fetchDoctor = async () => {
 			try {
 				const config = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
-				const res = await axios.get(`http://localhost:3000/api/doctors/profile/${doctorId}`, config);
+				const [doctorRes, apptRes] = await Promise.all([
+					axios.get(`http://localhost:3000/api/doctors/profile/${doctorId}`, config),
+					axios.get(`http://localhost:3000/api/appointments/doctor/${doctorId}`, config)
+				]);
 				if (!isMounted) return;
-				setDoctor(res.data);
-				setAvailability(parseAvailability(res.data.availability));
+				setDoctor(doctorRes.data);
+				setAvailability(parseAvailability(doctorRes.data.availability));
+				setAppointments(apptRes.data || []);
 			} catch (err) {
 				console.error('Failed to load doctor profile', err);
 			} finally {
@@ -96,28 +116,29 @@ export default function BookAppointment() {
 		return buildSlotsForDay(dayAvailability);
 	}, [availability, selectedDate]);
 
-	const handleConfirm = async () => {
+	const bookedSlots = useMemo(() => {
+		if (!selectedDate) return new Set();
+		return new Set(
+			appointments
+				.filter((appt) => appt.date === selectedDate && appt.status !== 'cancelled' && appt.status !== 'rejected')
+				.map((appt) => normalizeTime(appt.time))
+				.filter(Boolean)
+		);
+	}, [appointments, selectedDate]);
+
+	const handlePayNow = () => {
 		if (!user || !token) return alert('Please login first');
 		if (!selectedDate || !selectedTime) return alert('Please select a date and time');
 
-		setSaving(true);
-		try {
-			await axios.post('http://localhost:3000/api/appointments/book', {
-				patientId: user.id,
+		navigate('/patient/payment', {
+			state: {
 				doctorId,
+				doctorName: doctor?.name || '',
+				consultationFee: doctor?.consultationFee || 0,
 				date: selectedDate,
 				time: selectedTime
-			}, {
-				headers: { Authorization: `Bearer ${token}` }
-			});
-			alert('Appointment booked successfully!');
-			navigate('/patient/appointments');
-		} catch (err) {
-			console.error(err);
-			alert('Failed to book appointment');
-		} finally {
-			setSaving(false);
-		}
+			}
+		});
 	};
 
 	return (
@@ -168,19 +189,25 @@ export default function BookAppointment() {
 							{selectedDate ? (
 								availableSlots.length > 0 ? (
 									<div className="flex flex-wrap gap-2">
-										{availableSlots.map((slot) => (
+										{availableSlots.map((slot) => {
+											const isBooked = bookedSlots.has(slot);
+											return (
 											<button
 												key={slot}
 												type="button"
-												onClick={() => setSelectedTime(slot)}
-												className={`px-3 py-2 rounded-lg text-sm border transition ${selectedTime === slot
-													? 'bg-blue-600 text-white border-blue-600'
-													: 'bg-white text-gray-700 hover:bg-blue-50'}
-												`}
+													onClick={() => setSelectedTime(slot)}
+													disabled={isBooked}
+													className={`px-3 py-2 rounded-lg text-sm border transition ${isBooked
+														? 'bg-red-50 text-red-600 border-red-200 cursor-not-allowed'
+														: selectedTime === slot
+															? 'bg-green-600 text-white border-green-600'
+															: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200'}
+													`}
 											>
 												{slot} - {minutesToTime(timeToMinutes(slot) + 30)}
 											</button>
-										))}
+											);
+										})}
 									</div>
 								) : (
 									<p className="text-sm text-gray-500">No available slots for this day.</p>
@@ -194,11 +221,11 @@ export default function BookAppointment() {
 					<div className="flex justify-end">
 						<button
 							type="button"
-							onClick={handleConfirm}
+							onClick={handlePayNow}
 							disabled={saving || !selectedDate || !selectedTime}
 							className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
 						>
-							{saving ? 'Booking...' : 'Confirm Appointment'}
+							Pay Now
 						</button>
 					</div>
 				</div>
