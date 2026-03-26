@@ -1,15 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Search, Calendar, Video, FileText, Brain, LogOut, Activity, User, Pill } from 'lucide-react';
-import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
-import VideoCall from '../components/VideoCall';
 import { useNavigate, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+// Modular Patient components
+import SearchDoctors from './patient/SearchDoctors';
+import PatientAppointments from './patient/Appointments';
+import AIAnalyzer from './patient/AIAnalyzer';
+import HealthProfile from './patient/HealthProfile';
+import MedicalReports from './patient/MedicalReports';
+import Profile from './patient/Profile';
+import Prescriptions from './patient/Prescriptions';
+import Telemedicine from './patient/Telemedicine';
+import BookAppointment from './BookAppointment';
+import MyAppointments from './MyAppointments';
+import PatientPaymentService from './PatientPaymentService';
 
 export default function PatientDashboard() {
-    const { user, token, logout } = useAuth();
+    const { user, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [doctors, setDoctors] = useState([]);
+    const [doctorMap, setDoctorMap] = useState({});
+    const [doctorAvailabilityMap, setDoctorAvailabilityMap] = useState({});
     const [appointments, setAppointments] = useState([]);
     const [healthProfile, setHealthProfile] = useState({ vitals: { bloodPressure: '', heartRate: '', weight: '', height: '' }, allergies: [], reports: [] });
     const [loading, setLoading] = useState(false);
@@ -36,6 +49,14 @@ export default function PatientDashboard() {
             try {
                 const docRes = await axios.get('http://localhost:3000/api/doctors/list', { headers: { Authorization: `Bearer ${token}` }});
                 setDoctors(docRes.data);
+                setDoctorMap(docRes.data.reduce((acc, doc) => {
+                    acc[doc._id] = doc.name;
+                    return acc;
+                }, {}));
+                setDoctorAvailabilityMap(docRes.data.reduce((acc, doc) => {
+                    acc[doc._id] = doc.availability;
+                    return acc;
+                }, {}));
                 
                 const apptRes = await axios.get(`http://localhost:3000/api/appointments/patient/${user.id}`, { headers: { Authorization: `Bearer ${token}` }});
                 setAppointments(apptRes.data);
@@ -63,22 +84,9 @@ export default function PatientDashboard() {
         fetchAll();
     }, [token, user]);
 
-    const handleBookAppointment = async (doctorId) => {
+    const handleBookAppointment = (doctorId) => {
         if (!user || !token) return alert('Please login first');
-        try {
-            await axios.post('http://localhost:3000/api/appointments/book', {
-                patientId: user.id,
-                doctorId,
-                date: new Date().toISOString().split('T')[0], // Mock date
-                time: '10:00 AM' // Mock time
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            alert('Appointment booked successfully!');
-        } catch (err) {
-            console.error(err);
-            alert('Failed to book appointment');
-        }
+        navigate(`/patient/book/${doctorId}`);
     };
 
     const handleCancelAppointment = async (apptId) => {
@@ -118,109 +126,37 @@ export default function PatientDashboard() {
         navigate('/');
     };
 
-    const handleUpdateProfile = async (e) => {
-        e.preventDefault();
-        try {
-            await axios.put(`http://localhost:3000/api/patients/profile/${user.id}`, profileData, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            alert("Profile updated successfully!");
-        } catch (err) {
-            console.error(err);
-            alert("Failed to update profile");
-        }
-    };
-
-    const handleUpdateHealthProfile = async (e) => {
-        e.preventDefault();
-        try {
-            await axios.put(`http://localhost:3000/api/patients/health-profile/${user.id}`, healthProfile, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            alert("Health profile updated successfully!");
-        } catch (err) {
-            console.error(err);
-            alert("Failed to update health profile");
-        }
-    };
-
-    const handleUploadReport = async (e) => {
-        e.preventDefault();
-        if (!selectedFile) return;
-        
-        const formData = new FormData();
-        formData.append('report', selectedFile);
-
-        setUploading(true);
-        try {
-            const res = await axios.post(`http://localhost:3000/api/patients/upload-report/${user.id}`, formData, {
-                headers: { 
-                    'Content-Type': 'multipart/form-data',
-                    Authorization: `Bearer ${token}` 
-                }
-            });
-            alert("Report uploaded successfully!");
-            setHealthProfile(prev => ({
-                ...prev,
-                reports: [...(prev.reports || []), res.data.report]
-            }));
-            setSelectedFile(null);
-            e.target.reset();
-        } catch (err) {
-            console.error(err);
-            alert("Failed to upload report");
-        } finally {
-            setUploading(false);
-        }
-    };
-
-    const handleCheckSymptoms = async (e) => {
-        e.preventDefault();
-        if (!symptoms.trim()) return;
-
-        setAiLoading(true);
-        try {
-            const res = await axios.post(`http://localhost:3000/api/ai/check-symptoms`, {
-                symptoms,
-                patientProfile: healthProfile
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setAiResponse(res.data);
-        } catch (err) {
-            console.error(err);
-            alert("Failed to analyze symptoms");
-        } finally {
-            setAiLoading(false);
-        }
-    };
+    const tabs = [
+        { path: '/patient/profile', icon: User, label: 'My Profile' },
+        { path: '/patient/search', icon: Search, label: 'Find Doctors' },
+        { path: '/patient/appointments', icon: Calendar, label: 'My Appointments' },
+        { path: '/patient/telemedicine', icon: Video, label: 'Video Consult' },
+        { path: '/patient/health', icon: Activity, label: 'Health Profile' },
+        { path: '/patient/prescriptions', icon: Pill, label: 'Prescriptions' },
+        { path: '/patient/reports', icon: FileText, label: 'Medical Reports' },
+        { path: '/patient/ai', icon: Brain, label: 'Symptom Checker' }
+    ];
 
     return (
-        <div className="py-8">
-            <div className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-800">Patient Dashboard {user ? `- Welcome ${user.name}` : ''}</h1>
-                <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition font-medium">
-                    <LogOut className="w-5 h-5" /> Logout
+        <div className="py-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
+                <div>
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Patient Portal</h1>
+                    <p className="text-slate-500 font-medium">Welcome back, {user?.name}</p>
+                </div>
+                <button onClick={handleLogout} className="flex items-center gap-2 px-6 py-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-all font-bold shadow-sm border border-red-100">
+                    <LogOut className="w-5 h-5" /> Sign Out
                 </button>
             </div>
 
-            <div className="flex gap-4 mb-8 overflow-x-auto pb-4">
-                {[
-                    { path: '/patient/profile', icon: User, label: 'My Profile' },
-                    { path: '/patient/search', icon: Search, label: 'Find Doctors' },
-                    { path: '/patient/appointments', icon: Calendar, label: 'My Appointments' },
-                    { path: '/patient/telemedicine', icon: Video, label: 'Video Consult' },
-                    { path: '/patient/health', icon: Activity, label: 'Health Profile' },
-                    { path: '/patient/prescriptions', icon: Pill, label: 'Prescriptions' },
-                    { path: '/patient/reports', icon: FileText, label: 'Medical Reports' },
-                    { path: '/patient/ai', icon: Brain, label: 'Symptom Checker' }
-                ].map(tab => (
+            <div className="flex gap-3 mb-10 overflow-x-auto pb-4 no-scrollbar">
+                {tabs.map(tab => (
                     <Link
                         key={tab.path}
                         to={tab.path}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition whitespace-nowrap ${location.pathname === tab.path
-                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
-                                : 'bg-white text-gray-600 hover:bg-blue-50'
+                        className={`flex items-center gap-2 px-6 py-4 rounded-2xl font-bold transition-all whitespace-nowrap shadow-sm border ${location.pathname.startsWith(tab.path)
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-indigo-100'
+                                : 'bg-white text-slate-600 hover:bg-slate-50 border-slate-100'
                             }`}
                     >
                         <tab.icon className="w-5 h-5" />
@@ -229,70 +165,29 @@ export default function PatientDashboard() {
                 ))}
             </div>
 
-            <div className="glass-card p-8 min-h-[400px]">
+            <div className="glass-premium p-8 lg:p-12 min-h-[500px]">
                 <Routes>
                     <Route path="/" element={<Navigate to="search" replace />} />
-                    
-                    <Route path="search" element={
-                        <div className="space-y-6">
-                            <h2 className="text-xl font-semibold">Search for a Doctor</h2>
-                            <div className="flex gap-4">
-                                <input type="text" placeholder="Specialty (e.g., Cardiologist)" className="flex-1 px-4 py-3 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" />
-                                <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium">Search</button>
-                            </div>
-                            
-                            <div className="mt-8 grid md:grid-cols-2 gap-4">
-                                {doctors.length === 0 ? <p className="text-gray-500">No expected doctors found.</p> : doctors.map(doc => (
-                                    <div key={doc._id} className="p-4 border rounded-xl hover:shadow-md transition bg-white/50">
-                                        <h3 className="font-bold text-lg">{doc.name}</h3>
-                                        <p className="text-gray-500 text-sm mb-4">{doc.specialty} • Max Patients: {doc.maxPatients}</p>
-                                        <button 
-                                            onClick={() => handleBookAppointment(doc._id)}
-                                            className="w-full py-2 bg-teal-50 text-teal-700 font-medium rounded-lg hover:bg-teal-100 transition">
-                                            Book Appointment
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    } />
+                    <Route path="search" element={<SearchDoctors />} />
+                    <Route path="book/:doctorId" element={<BookAppointment />} />
 
-                    <Route path="appointments" element={
-                        <div>
-                            <h2 className="text-xl font-semibold mb-6">Upcoming Appointments</h2>
-                            <div className="space-y-4">
-                                {appointments.length === 0 ? <p className="text-gray-500">No appointments scheduled.</p> : appointments.map(appt => (
-                                    <div key={appt._id} className={`p-6 border rounded-xl bg-white/50 flex flex-col md:flex-row justify-between items-start md:items-center ${appt.status === 'cancelled' ? 'opacity-50' : ''}`}>
-                                        <div className={`mb-4 md:mb-0 ${appt.status === 'cancelled' || appt.status === 'rejected' ? 'opacity-50' : ''}`}>
-                                            <h3 className="font-bold">Doctor ID: {appt.doctorId}</h3>
-                                            <p className="text-gray-500">{appt.date} • {appt.time} • Status: <span className="font-medium capitalize">{appt.status}</span></p>
-                                            
-                                            {rescheduleData.id === appt._id && (
-                                                <div className="mt-3 flex gap-2 items-center">
-                                                    <input type="date" className="px-2 py-1 border rounded text-sm" value={rescheduleData.date} onChange={e => setRescheduleData({...rescheduleData, date: e.target.value})} />
-                                                    <input type="time" className="px-2 py-1 border rounded text-sm" value={rescheduleData.time} onChange={e => setRescheduleData({...rescheduleData, time: e.target.value})} />
-                                                    <button onClick={() => handleReschedule(appt._id)} className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">Save</button>
-                                                    <button onClick={() => setRescheduleData({ id: null, date: '', time: '' })} className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300">Cancel</button>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex gap-2">
-                                            {appt.status !== 'cancelled' && appt.status !== 'rejected' && rescheduleData.id !== appt._id && (
-                                                <>
-                                                    {appt.status === 'accepted' && (
-                                                        <button onClick={() => startTelemedicine(appt._id)} className="px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition text-sm font-medium">Join Call</button>
-                                                    )}
-                                                    <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition text-sm font-medium">Reschedule</button>
-                                                    <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-medium">Cancel Appt</button>
-                                                    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">Pay Now</button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    } />
+                    <Route path="payment" element={<PatientPaymentService />} />
+
+                    <Route
+                        path="appointments"
+                        element={
+                            <MyAppointments
+                                appointments={appointments}
+                                doctorMap={doctorMap}
+                                doctorAvailabilityMap={doctorAvailabilityMap}
+                                rescheduleData={rescheduleData}
+                                setRescheduleData={setRescheduleData}
+                                handleReschedule={handleReschedule}
+                                handleCancelAppointment={handleCancelAppointment}
+                                startTelemedicine={startTelemedicine}
+                            />
+                        }
+                    />
 
                     <Route path="telemedicine" element={
                         <div>

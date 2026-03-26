@@ -24,6 +24,9 @@ const doctorSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     specialty: { type: String, required: true },
+    experience: { type: Number, default: 0 },
+    consultationFee: { type: Number, default: 0 },
+    availability: { type: Array, default: [] },
     verified: { type: Boolean, default: false },
     maxPatients: { type: Number, default: 10 },
     createdAt: { type: Date, default: Date.now }
@@ -82,8 +85,64 @@ app.post('/login', async (req, res) => {
     }
 });
 
-app.put('/:id/availability', (req, res) => {
-    res.json({ message: 'Availability updated successfully (mock)' });
+const parseAvailability = (value) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (err) {
+            return [];
+        }
+    }
+    return [];
+};
+
+app.get('/profile/:id', async (req, res) => {
+    try {
+        const doctor = await Doctor.findById(req.params.id).select('-password');
+        if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
+        res.json(doctor);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/profile/:id', async (req, res) => {
+    try {
+        const { name, specialty, specialization, experience, availability, consultationFee } = req.body;
+
+        const update = {};
+        if (typeof name === 'string') update.name = name;
+        if (typeof specialty === 'string') update.specialty = specialty;
+        if (typeof specialization === 'string' && !update.specialty) update.specialty = specialization;
+
+        const parsedExperience = Number.isFinite(Number(experience)) ? Number(experience) : undefined;
+        if (parsedExperience !== undefined) update.experience = parsedExperience;
+
+        const parsedFee = Number.isFinite(Number(consultationFee)) ? Number(consultationFee) : undefined;
+        if (parsedFee !== undefined) update.consultationFee = parsedFee;
+
+        if (availability !== undefined) update.availability = parseAvailability(availability);
+
+        const doctor = await Doctor.findByIdAndUpdate(req.params.id, update, { new: true }).select('-password');
+        if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
+
+        res.json(doctor);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/:id/availability', async (req, res) => {
+    try {
+        const availability = parseAvailability(req.body?.availability);
+        const doctor = await Doctor.findByIdAndUpdate(req.params.id, { availability }, { new: true }).select('-password');
+        if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
+        res.json({ message: 'Availability updated successfully', doctor });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.get('/pending', async (req, res) => {
