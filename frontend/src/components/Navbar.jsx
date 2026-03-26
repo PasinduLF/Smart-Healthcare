@@ -16,26 +16,44 @@ export default function Navbar() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    const navLinks = [
+    const publicLinks = [
         { name: 'Home', path: '/' },
         { name: 'Services', path: '/services' },
         { name: 'About', path: '/about' },
         { name: 'Contact', path: '/contact' },
     ];
 
-    const isActive = (path) => location.pathname === path;
+    const patientLinks = [
+        { name: 'Find Doctors', path: '/patient/search' },
+        { name: 'My Appointments', path: '/patient/appointments' },
+        { name: 'AI Checker', path: '/patient/ai' },
+        { name: 'Medical Reports', path: '/patient/reports' },
+    ];
 
-    const handleDashboardRedirect = () => {
-        if (!user) return navigate('/login');
-        if (user.role === 'admin') navigate('/admin');
-        else if (user.role === 'doctor') navigate('/doctor');
-        else navigate('/patient');
+    const doctorLinks = [
+        { name: 'Appointments', path: '/doctor/appointments' },
+        { name: 'My Schedule', path: '/doctor/schedule' },
+        { name: 'Prescriptions', path: '/doctor/prescriptions' },
+    ];
+
+    const adminLinks = [
+        { name: 'User Management', path: '/admin/users' },
+        { name: 'Revenue', path: '/admin/payments' },
+        { name: 'System Settings', path: '/admin/settings' },
+    ];
+
+    const getRoleLinks = () => {
+        if (!user) return [];
+        if (user.role === 'admin') return adminLinks;
+        if (user.role === 'doctor') return doctorLinks;
+        return patientLinks;
     };
 
+    const isActive = (path) => location.pathname === path;
+
     return (
-        <nav className={`fixed top-0 w-full z-[100] transition-all duration-300 ${
-            isScrolled ? 'py-3 bg-white/80 backdrop-blur-lg shadow-sm border-b' : 'py-5 bg-transparent'
-        }`}>
+        <nav className={`fixed top-0 w-full z-[100] transition-all duration-300 ${isScrolled ? 'py-3 bg-white/80 backdrop-blur-lg shadow-sm border-b' : 'py-5 bg-transparent'
+            }`}>
             <div className="container mx-auto px-6 flex justify-between items-center">
                 {/* Logo */}
                 <Link to="/" className="flex items-center gap-2 group">
@@ -48,14 +66,24 @@ export default function Navbar() {
                 </Link>
 
                 {/* Desktop Links */}
-                <div className="hidden md:flex items-center gap-8">
-                    {navLinks.map((link) => (
-                        <Link 
-                            key={link.path} 
+                <div className="hidden lg:flex items-center gap-6">
+                    {publicLinks.map((link) => (
+                        <Link
+                            key={link.path}
                             to={link.path}
-                            className={`text-sm font-semibold transition-colors hover:text-indigo-600 ${
-                                isActive(link.path) ? 'text-indigo-600' : 'text-slate-600'
-                            }`}
+                            className={`text-sm font-semibold transition-colors hover:text-indigo-600 ${isActive(link.path) ? 'text-indigo-600' : 'text-slate-600'
+                                }`}
+                        >
+                            {link.name}
+                        </Link>
+                    ))}
+                    {user && <div className="h-4 w-[1px] bg-slate-200 mx-2" />}
+                    {getRoleLinks().map((link) => (
+                        <Link
+                            key={link.path}
+                            to={link.path}
+                            className={`text-sm font-bold transition-colors hover:text-indigo-600 ${isActive(link.path) ? 'text-indigo-600' : 'text-slate-900'
+                                }`}
                         >
                             {link.name}
                         </Link>
@@ -65,15 +93,15 @@ export default function Navbar() {
                 {/* Auth Actions */}
                 <div className="hidden md:flex items-center gap-4">
                     {user ? (
-                        <div className="flex items-center gap-4">
-                            <button 
-                                onClick={handleDashboardRedirect}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-black transition-all shadow-lg shadow-slate-200"
+                        <div className="flex items-center gap-3">
+                            <Link
+                                to={user.role === 'patient' ? '/patient/profile' : user.role === 'doctor' ? '/doctor/schedule' : '/admin/settings'}
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-100 transition-all border border-slate-100"
                             >
                                 <User className="w-4 h-4" />
-                                Dashboard
-                            </button>
-                            <button 
+                                {user.name.split(' ')[0]}
+                            </Link>
+                            <button
                                 onClick={logout}
                                 className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                                 title="Logout"
@@ -94,7 +122,7 @@ export default function Navbar() {
                 </div>
 
                 {/* Mobile Toggle */}
-                <button 
+                <button
                     className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition"
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
                 >
@@ -104,16 +132,15 @@ export default function Navbar() {
 
             {/* Mobile Menu */}
             {isMenuOpen && (
-                <div className="md:hidden absolute top-full left-0 w-full bg-white border-b shadow-xl p-6 animate-in slide-in-from-top-4 duration-200">
+                <div className="md:hidden absolute top-full left-0 w-full bg-white border-b shadow-xl p-6 animate-in slide-in-from-top-4 duration-200 overflow-y-auto max-h-[80vh]">
                     <div className="flex flex-col gap-4">
-                        {navLinks.map((link) => (
-                            <Link 
-                                key={link.path} 
+                        {[...publicLinks, ...getRoleLinks()].map((link) => (
+                            <Link
+                                key={link.path}
                                 to={link.path}
                                 onClick={() => setIsMenuOpen(false)}
-                                className={`text-lg font-bold flex justify-between items-center ${
-                                    isActive(link.path) ? 'text-indigo-600' : 'text-slate-700'
-                                }`}
+                                className={`text-lg font-bold flex justify-between items-center ${isActive(link.path) ? 'text-indigo-600' : 'text-slate-700'
+                                    }`}
                             >
                                 {link.name}
                                 <ChevronRight className="w-5 h-5 opacity-50" />
@@ -122,13 +149,7 @@ export default function Navbar() {
                         <hr className="my-2" />
                         {user ? (
                             <div className="space-y-3">
-                                <button 
-                                    onClick={() => { handleDashboardRedirect(); setIsMenuOpen(false); }}
-                                    className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl"
-                                >
-                                    Go to Dashboard
-                                </button>
-                                <button 
+                                <button
                                     onClick={() => { logout(); setIsMenuOpen(false); }}
                                     className="w-full py-4 text-red-600 font-bold border border-red-100 rounded-2xl bg-red-50"
                                 >
@@ -137,15 +158,15 @@ export default function Navbar() {
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                <Link 
-                                    to="/login" 
+                                <Link
+                                    to="/login"
                                     onClick={() => setIsMenuOpen(false)}
                                     className="block w-full py-4 text-center font-bold text-slate-700 bg-slate-50 rounded-2xl"
                                 >
                                     Sign In
                                 </Link>
-                                <Link 
-                                    to="/register" 
+                                <Link
+                                    to="/register"
                                     onClick={() => setIsMenuOpen(false)}
                                     className="block w-full py-4 text-center font-bold text-white bg-indigo-600 rounded-2xl"
                                 >

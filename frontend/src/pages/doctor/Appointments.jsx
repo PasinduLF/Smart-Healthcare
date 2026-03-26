@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Activity, X } from 'lucide-react';
 
 export default function DoctorAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
+    const navigate = useNavigate();
     const [appointments, setAppointments] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -64,6 +66,7 @@ export default function DoctorAppointments({ setActiveCall }) {
 
     const startTelemedicine = (apptId) => {
         setActiveCall(`channel-${apptId}`);
+        navigate('/doctor/telemedicine');
     };
 
     if (loading) return <div className="text-center py-10 text-gray-400">Loading appointments...</div>;

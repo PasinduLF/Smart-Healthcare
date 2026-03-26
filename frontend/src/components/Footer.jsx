@@ -1,8 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Activity, Instagram, Twitter, Linkedin, Github, Mail, Globe, MapPin, Phone } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function Footer() {
+    const { user } = useAuth();
     const currentYear = new Date().getFullYear();
 
     return (
@@ -37,8 +39,12 @@ export default function Footer() {
                         <ul className="space-y-4 text-sm">
                             <li><Link to="/services" className="hover:text-indigo-400 transition">Services</Link></li>
                             <li><Link to="/about" className="hover:text-indigo-400 transition">About Us</Link></li>
-                            <li><Link to="/login" className="hover:text-indigo-400 transition">Health Portal (Login)</Link></li>
-                            <li><Link to="/register" className="hover:text-indigo-400 transition">Join as Doctor</Link></li>
+                            {user ? (
+                                <li><Link to={user.role === 'patient' ? '/patient/profile' : '/doctor/schedule'} className="hover:text-indigo-400 transition font-bold text-white">My Account Profile</Link></li>
+                            ) : (
+                                <li><Link to="/login" className="hover:text-indigo-400 transition">Health Portal (Login)</Link></li>
+                            )}
+                            {!user && <li><Link to="/register" className="hover:text-indigo-400 transition">Join as Doctor</Link></li>}
                         </ul>
                     </div>
 

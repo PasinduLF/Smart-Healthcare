@@ -70,18 +70,88 @@ const buildSlotsForDay = (dayAvailability) => {
     return Array.from(new Set(slots)).sort();
 };
 
-export default function MyAppointments({
-    appointments,
-    doctorMap,
-    doctorAvailabilityMap,
-    rescheduleData,
-    setRescheduleData,
-    handleReschedule,
-    handleCancelAppointment,
-    startTelemedicine
-}) {
-    const { token } = useAuth();
+export default function MyAppointments({ setActiveCall }) {
+    const { user, token } = useAuth();
+    const navigate = useNavigate();
+    const [appointments, setAppointments] = useState([]);
+    const [doctorMap, setDoctorMap] = useState({});
+    const [doctorAvailabilityMap, setDoctorAvailabilityMap] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [rescheduleData, setRescheduleData] = useState({ id: null, date: '', time: '' });
     const [doctorAppointments, setDoctorAppointments] = useState([]);
+
+    useEffect(() => {
+        const fetchAll = async () => {
+            if (!user?.id || !token) return;
+            try {
+                const [docRes, apptRes] = await Promise.all([
+                    axios.get('http://localhost:3000/api/doctors/list', { headers: { Authorization: `Bearer ${token}` } }),
+                    axios.get(`http://localhost:3000/api/appointments/patient/${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
+                ]);
+
+                setDoctors(docRes.data);
+                setAppointments(apptRes.data);
+                setDoctorMap(docRes.data.reduce((acc, doc) => {
+                    acc[doc._id] = doc.name;
+                    return acc;
+                }, {}));
+                setDoctorAvailabilityMap(docRes.data.reduce((acc, doc) => {
+                    acc[doc._id] = doc.availability;
+                    return acc;
+                }, {}));
+            } catch (err) {
+                console.error("Failed to fetch appointment data", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchAll();
+    }, [user, token]);
+
+    const handleCancelAppointment = async (apptId) => {
+        try {
+            await axios.put(`http://localhost:3000/api/appointments/cancel/${apptId}`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setAppointments(appointments.map(a => a._id === apptId ? { ...a, status: 'cancelled' } : a));
+        } catch (err) {
+            console.error(err);
+            alert('Failed to cancel appointment');
+        }
+    };
+
+    const handleReschedule = async (apptId) => {
+        if (!rescheduleData.date || !rescheduleData.time) return alert("Please select date and time");
+        try {
+            await axios.put(`http://localhost:3000/api/appointments/reschedule/${apptId}`, { date: rescheduleData.date, time: rescheduleData.time }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setAppointments(appointments.map(a => a._id === apptId ? { ...a, date: rescheduleData.date, time: rescheduleData.time, status: 'pending' } : a));
+            setRescheduleData({ id: null, date: '', time: '' });
+            alert('Appointment rescheduled and is pending approval!');
+        } catch (err) {
+            console.error(err);
+            alert('Failed to reschedule');
+        }
+    };
+
+    const startTelemedicine = (apptId) => {
+        if (setActiveCall) setActiveCall(`channel-${apptId}`);
+        navigate('/patient/telemedicine');
+    };
+
+    const handlePayNow = (appt) => {
+        navigate('/patient/payment', { 
+            state: { 
+                appointment: appt,
+                doctorId: appt.doctorId,
+                doctorName: doctorMap[appt.doctorId] || 'Specialist',
+                consultationFee: appt.amount || 2500, // Default fee if not in appt
+                date: appt.date,
+                time: appt.time
+            } 
+        });
+    };
 
     const rescheduleTarget = useMemo(() => {
         if (!rescheduleData.id) return null;
@@ -129,68 +199,87 @@ export default function MyAppointments({
                 .filter(Boolean)
         );
     }, [doctorAppointments, rescheduleData.date, rescheduleTarget]);
+
+    if (loading) return <div className="text-center py-10 text-gray-400">Loading appointments...</div>;
+
     return (
         <div>
             <h2 className="text-xl font-semibold mb-6">Upcoming Appointments</h2>
             <div className="space-y-4">
-                {appointments.filter(appt => appt.status !== 'cancelled').length === 0 ? <p className="text-gray-500">No appointments scheduled.</p> : appointments.filter(appt => appt.status !== 'cancelled').map(appt => (
-                    <div key={appt._id} className={`p-6 border rounded-xl bg-white/50 flex flex-col md:flex-row justify-between items-start md:items-center ${appt.status === 'cancelled' ? 'opacity-50' : ''}`}>
-                        <div className={`mb-4 md:mb-0 ${appt.status === 'cancelled' || appt.status === 'rejected' ? 'opacity-50' : ''}`}>
-                            <h3 className="font-bold">Doctor ID: {appt.doctorId}</h3>
-                            <h3 className="font-bold">Doctor Name: {doctorMap?.[appt.doctorId] || 'Unknown'}</h3>
-                            <p className="text-gray-500">{appt.date} • {appt.time} • Status: <span className="font-medium capitalize">{appt.status}</span></p>
+                {appointments.filter(appt => appt.status !== 'cancelled').length === 0 ? (
+                    <p className="text-gray-500 text-center py-10 italic">No appointments scheduled.</p>
+                ) : (
+                    appointments.filter(appt => appt.status !== 'cancelled').map(appt => (
+                        <div key={appt._id} className="p-6 border rounded-xl bg-white/50 flex flex-col md:flex-row justify-between items-start md:items-center">
+                            <div className="mb-4 md:mb-0">
+                                <h3 className="font-bold text-lg text-slate-800">{doctorMap?.[appt.doctorId] || 'Medical Specialist'}</h3>
+                                <p className="text-gray-500 font-medium">{appt.date} • {appt.time} • Status: <span className={`font-black uppercase tracking-widest text-[10px] px-2 py-1 rounded-lg ${
+                                    appt.status === 'accepted' ? 'bg-emerald-50 text-emerald-600' :
+                                    appt.status === 'pending' ? 'bg-orange-50 text-orange-600' :
+                                    'bg-red-50 text-red-600'
+                                }`}>{appt.status}</span></p>
 
-                            {rescheduleData.id === appt._id && (
-                                <div className="mt-3 flex gap-2 items-center">
-                                    <input
-                                        type="date"
-                                        className="px-2 py-1 border rounded text-sm"
-                                        value={rescheduleData.date}
-                                        onChange={e => setRescheduleData({ ...rescheduleData, date: e.target.value, time: '' })}
-                                    />
-                                    {rescheduleTarget?.doctorId === appt.doctorId ? (
-                                        <div className="flex flex-wrap gap-2">
-                                            {availableSlots.length === 0 ? (
-                                                <span className="text-xs text-gray-500">No slots</span>
-                                            ) : availableSlots.map((slot) => {
-                                                const isBooked = bookedSlots.has(slot);
-                                                return (
-                                                    <button
-                                                        key={`${appt._id}-${slot}`}
-                                                        type="button"
-                                                        disabled={isBooked}
-                                                        onClick={() => setRescheduleData({ ...rescheduleData, time: slot })}
-                                                        className={`px-2 py-1 rounded text-xs border transition ${isBooked
-                                                            ? 'bg-red-50 text-red-600 border-red-200 cursor-not-allowed'
-                                                            : rescheduleData.time === slot
-                                                                ? 'bg-green-600 text-white border-green-600'
-                                                                : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'}`}
-                                                    >
-                                                        {slot}-{minutesToTime(timeToMinutes(slot) + 30)}
-                                                    </button>
-                                                );
-                                            })}
+                                {rescheduleData.id === appt._id && (
+                                    <div className="mt-4 p-4 bg-white rounded-xl border border-slate-100 shadow-sm space-y-3">
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select New Slot</p>
+                                        <div className="flex gap-2 items-center">
+                                            <input
+                                                type="date"
+                                                className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                                                value={rescheduleData.date}
+                                                onChange={e => setRescheduleData({ ...rescheduleData, date: e.target.value, time: '' })}
+                                            />
+                                            <div className="flex flex-wrap gap-2">
+                                                {availableSlots.length === 0 ? (
+                                                    <span className="text-xs text-gray-400">No availability</span>
+                                                ) : availableSlots.map((slot) => {
+                                                    const isBooked = bookedSlots.has(slot);
+                                                    return (
+                                                        <button
+                                                            key={`${appt._id}-${slot}`}
+                                                            type="button"
+                                                            disabled={isBooked}
+                                                            onClick={() => setRescheduleData({ ...rescheduleData, time: slot })}
+                                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${isBooked
+                                                                ? 'bg-slate-100 text-slate-300 border-slate-100 cursor-not-allowed line-through'
+                                                                : rescheduleData.time === slot
+                                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100'
+                                                                    : 'bg-white text-slate-600 border-slate-100 hover:border-indigo-200'}`}
+                                                        >
+                                                            {slot}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                    ) : null}
-                                    <button onClick={() => handleReschedule(appt._id)} className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">Save</button>
-                                    <button onClick={() => setRescheduleData({ id: null, date: '', time: '' })} className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300">Cancel</button>
-                                </div>
-                            )}
+                                        <div className="flex gap-2">
+                                            <button onClick={() => handleReschedule(appt._id)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase transition hover:bg-indigo-700">Confirm Change</button>
+                                            <button onClick={() => setRescheduleData({ id: null, date: '', time: '' })} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold uppercase transition hover:bg-slate-200">Cancel</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex gap-2">
+                                {rescheduleData.id !== appt._id && (
+                                    <>
+                                        {appt.status === 'accepted' && (
+                                            <button onClick={() => startTelemedicine(appt._id)} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition text-sm font-bold border border-indigo-100">Join Call</button>
+                                        )}
+                                        {appt.status !== 'cancelled' && (
+                                            <>
+                                                <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition text-sm font-bold border border-slate-100">Reschedule</button>
+                                                <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-bold border border-red-100">Cancel</button>
+                                                {appt.status === 'requested' && (
+                                                     <button onClick={() => handlePayNow(appt)} className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition text-sm font-bold shadow-lg shadow-slate-200">Pay Now</button>
+                                                )}
+                                            </>
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         </div>
-                        <div className="flex gap-2">
-                            {appt.status !== 'cancelled' && appt.status !== 'rejected' && rescheduleData.id !== appt._id && (
-                                <>
-                                    {appt.status === 'accepted' && (
-                                        <button onClick={() => startTelemedicine(appt._id)} className="px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition text-sm font-medium">Join Call</button>
-                                    )}
-                                    <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition text-sm font-medium">Reschedule</button>
-                                    <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-medium">Cancel Appt</button>
-                                    
-                                </>
-                            )}
-                        </div>
-                    </div>
-                ))}
+                    ))
+                )}
             </div>
         </div>
     );
