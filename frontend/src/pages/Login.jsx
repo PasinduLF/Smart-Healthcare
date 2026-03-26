@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Activity, Lock, Mail } from 'lucide-react';
+import { Activity, Lock, Mail, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
@@ -29,37 +29,54 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-[80vh] flex items-center justify-center">
-            <div className="glass-card w-full max-w-md p-8">
-                <div className="flex flex-col items-center mb-8">
-                    <Activity className="w-12 h-12 text-blue-600 mb-4" />
-                    <h2 className="text-2xl font-bold text-gray-800">Welcome Back</h2>
-                    <p className="text-gray-500 text-sm">Sign in to your account</p>
+        <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-slate-50">
+            {/* Background Blobs */}
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-100/50 rounded-full blur-3xl animate-drift"></div>
+            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-teal-50/50 rounded-full blur-3xl animate-drift"></div>
+
+            <div className="glass-premium w-full max-w-md p-10 relative z-10 shadow-2xl">
+                <div className="flex flex-col items-center mb-10">
+                    <div className="p-3 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-200 mb-6">
+                        <Activity className="w-8 h-8 text-white" />
+                    </div>
+                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">Welcome Back</h2>
+                    <p className="text-slate-500 font-medium mt-1">Access your healthcare portal</p>
                 </div>
 
-                {error && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded text-sm text-center">{error}</div>}
+                {error && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-2xl text-sm font-bold flex items-center gap-2 animate-in fade-in zoom-in-95">
+                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                        {error}
+                    </div>
+                )}
 
                 <form onSubmit={handleLogin} className="space-y-6">
-                    <div className="flex gap-4">
-                        <label className={`flex-1 cursor-pointer py-2 text-center rounded-lg border font-medium transition ${role === 'patient' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-                            <input type="radio" name="role" value="patient" className="hidden" onChange={() => setRole('patient')} checked={role === 'patient'} />
+                    <div className="flex p-1 bg-slate-100 rounded-2xl">
+                        <button 
+                            type="button"
+                            onClick={() => setRole('patient')}
+                            className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${role === 'patient' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
                             Patient
-                        </label>
-                        <label className={`flex-1 cursor-pointer py-2 text-center rounded-lg border font-medium transition ${role === 'doctor' ? 'bg-teal-50 border-teal-500 text-teal-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-                            <input type="radio" name="role" value="doctor" className="hidden" onChange={() => setRole('doctor')} checked={role === 'doctor'} />
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={() => setRole('doctor')}
+                            className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${role === 'doctor' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
                             Doctor
-                        </label>
+                        </button>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Email Address</label>
+                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Email Address</label>
                         <div className="relative">
-                            <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                             <input
                                 type="email"
                                 required
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                                placeholder="you@example.com"
+                                className="w-full pl-12 pr-5 py-4 bg-slate-50 border border-transparent focus:bg-white focus:border-indigo-500 rounded-2xl outline-none transition-all font-medium text-slate-700 shadow-sm"
+                                placeholder="name@example.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                             />
@@ -67,13 +84,13 @@ export default function Login() {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Password</label>
+                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Password</label>
                         <div className="relative">
-                            <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                             <input
                                 type="password"
                                 required
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                className="w-full pl-12 pr-5 py-4 bg-slate-50 border border-transparent focus:bg-white focus:border-indigo-500 rounded-2xl outline-none transition-all font-medium text-slate-700 shadow-sm"
                                 placeholder="••••••••"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
@@ -83,18 +100,21 @@ export default function Login() {
 
                     <button
                         type="submit"
-                        className={`w-full py-3 text-white font-semibold rounded-lg transition shadow-lg ${role === 'patient' ? 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-500/30' : 'bg-teal-600 hover:bg-teal-700 hover:shadow-teal-500/30'}`}
+                        className="w-full py-5 bg-indigo-600 text-white font-bold rounded-[1.25rem] hover:bg-slate-900 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-2 group"
                     >
-                        Sign In
+                        Sign In to Account
+                        <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </button>
                 </form>
 
-                <p className="mt-6 text-center text-sm text-gray-600">
-                    Don't have an account?{' '}
-                    <Link to="/register" className="text-blue-600 font-semibold hover:underline">
-                        Register here
-                    </Link>
-                </p>
+                <div className="mt-10 pt-8 border-t border-slate-100 text-center">
+                    <p className="text-sm font-semibold text-slate-500">
+                        New to SmartHealth?{' '}
+                        <Link to="/register" className="text-indigo-600 hover:underline">
+                            Create an account
+                        </Link>
+                    </p>
+                </div>
             </div>
         </div>
     );
