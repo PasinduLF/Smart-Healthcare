@@ -28,6 +28,7 @@ const Transaction = mongoose.model('Transaction', transactionSchema);
 
 const pendingPaymentSchema = new mongoose.Schema({
     orderId: { type: String, required: true, unique: true },
+    appointmentId: { type: String, required: true },
     patientId: { type: String, required: true },
     doctorId: { type: String, required: true },
     date: { type: String, required: true },
@@ -75,6 +76,7 @@ app.post('/create-checkout-session', async (req, res) => {
 app.post('/payhere/checkout', async (req, res) => {
     try {
         const {
+            appointmentId,
             patientId,
             doctorId,
             date,
@@ -90,7 +92,7 @@ app.post('/payhere/checkout', async (req, res) => {
             country
         } = req.body;
 
-        if (!patientId || !doctorId || !date || !time) {
+        if (!appointmentId || !patientId || !doctorId || !date || !time) {
             return res.status(400).json({ error: 'Missing appointment details' });
         }
 
@@ -111,6 +113,7 @@ app.post('/payhere/checkout', async (req, res) => {
 
         await new PendingPayment({
             orderId,
+            appointmentId,
             patientId,
             doctorId,
             date,
@@ -171,12 +174,7 @@ app.post('/payhere/notify', async (req, res) => {
             await payment.save();
 
             const appointmentServiceUrl = process.env.APPOINTMENT_SERVICE_URL || 'http://appointment-service:3003';
-            await axios.post(`${appointmentServiceUrl}/book`, {
-                patientId: payment.patientId,
-                doctorId: payment.doctorId,
-                date: payment.date,
-                time: payment.time
-            });
+            await axios.put(`${appointmentServiceUrl}/payment/${payment.appointmentId}`);
 
             await new Transaction({
                 amount: Math.round(payment.amount * 100),

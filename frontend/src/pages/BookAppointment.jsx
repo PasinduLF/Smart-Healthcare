@@ -127,19 +127,27 @@ export default function BookAppointment() {
 		);
 	}, [appointments, selectedDate]);
 
-	const handlePayNow = () => {
+	const handleRequestAppointment = async () => {
 		if (!user || !token) return alert('Please login first');
 		if (!selectedDate || !selectedTime) return alert('Please select a date and time');
-
-		navigate('/patient/payment', {
-			state: {
+		setSaving(true);
+		try {
+			await axios.post(`${API_BASE_URL}/api/appointments/book`, {
+				patientId: user.id,
 				doctorId,
-				doctorName: doctor?.name || '',
-				consultationFee: doctor?.consultationFee || 0,
 				date: selectedDate,
-				time: selectedTime
-			}
-		});
+				time: selectedTime,
+				paymentStatus: 'unpaid'
+			}, {
+				headers: { Authorization: `Bearer ${token}` }
+			});
+			navigate('/patient/appointments', { state: { refresh: true } });
+		} catch (err) {
+			console.error('Failed to request appointment', err);
+			alert('Failed to request appointment');
+		} finally {
+			setSaving(false);
+		}
 	};
 
 	return (
@@ -222,11 +230,11 @@ export default function BookAppointment() {
 					<div className="flex justify-end">
 						<button
 							type="button"
-							onClick={handlePayNow}
+							onClick={handleRequestAppointment}
 							disabled={saving || !selectedDate || !selectedTime}
 							className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
 						>
-							Pay Now
+							Request Appointment
 						</button>
 					</div>
 				</div>

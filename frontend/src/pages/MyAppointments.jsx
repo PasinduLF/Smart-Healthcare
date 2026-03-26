@@ -225,11 +225,20 @@ export default function MyAppointments({ setActiveCall }) {
                         <div key={appt._id} className="p-6 border rounded-xl bg-white/50 flex flex-col md:flex-row justify-between items-start md:items-center">
                             <div className="mb-4 md:mb-0">
                                 <h3 className="font-bold text-lg text-slate-800">{doctorMap?.[appt.doctorId] || 'Medical Specialist'}</h3>
-                                <p className="text-gray-500 font-medium">{appt.date} • {appt.time} • Status: <span className={`font-black uppercase tracking-widest text-[10px] px-2 py-1 rounded-lg ${
+                                <p className="text-gray-500 font-medium">{appt.date} • {appt.time} • Doctor Acceptance Status: <span className={`font-black uppercase tracking-widest text-[10px] px-2 py-1 rounded-lg ${
                                     appt.status === 'accepted' ? 'bg-emerald-50 text-emerald-600' :
                                     appt.status === 'pending' ? 'bg-orange-50 text-orange-600' :
                                     'bg-red-50 text-red-600'
                                 }`}>{appt.status}</span></p>
+                                <p className="text-xs uppercase tracking-widest font-bold text-slate-400 mt-1">
+                                    Payment: <span className={
+                                        appt.paymentStatus === 'unpaid'
+                                            ? 'text-red-500'
+                                            : appt.paymentStatus === 'refunded'
+                                                ? 'text-amber-600'
+                                                : 'text-emerald-600'
+                                    }>{appt.paymentStatus || 'unpaid'}</span>
+                                </p>
 
                                 {rescheduleData.id === appt._id && (
                                     <div className="mt-4 p-4 bg-white rounded-xl border border-slate-100 shadow-sm space-y-3">
@@ -281,9 +290,9 @@ export default function MyAppointments({ setActiveCall }) {
                                             <>
                                                 <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition text-sm font-bold border border-slate-100">Reschedule</button>
                                                 <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-bold border border-red-100">Cancel</button>
-                                                {appt.status === 'requested' && (
-                                                     <button onClick={() => handlePayNow(appt)} className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition text-sm font-bold shadow-lg shadow-slate-200">Pay Now</button>
-                                                )}
+                                                   {appt.status === 'accepted' && appt.paymentStatus !== 'paid' && (
+                                                       <button onClick={() => handlePayNow(appt)} className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition text-sm font-bold shadow-lg shadow-slate-200">Pay Now</button>
+                                                   )}
                                             </>
                                         )}
                                     </>

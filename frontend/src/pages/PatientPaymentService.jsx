@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, CreditCard } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -42,19 +42,38 @@ export default function PatientPaymentService() {
 	const [paying, setPaying] = useState(false);
 
 	const appointment = paymentData.appointment || {};
+	const appointmentId = paymentData.appointmentId || appointment._id || '';
 	const doctorId = paymentData.doctorId || appointment.doctorId || '';
 	const doctorName = paymentData.doctorName || 'Doctor';
-	const consultationFee = Number(paymentData.consultationFee) || 0;
+	const [consultationFee, setConsultationFee] = useState(Number(paymentData.consultationFee) || 0);
 	const date = paymentData.date || appointment.date || 'N/A';
 	const time = normalizeTime(paymentData.time || appointment.time || '');
 
+	useEffect(() => {
+		const loadFee = async () => {
+			if (!doctorId) return;
+			try {
+				const res = await axios.get(`${API_BASE_URL}/api/doctors/profile/${doctorId}`, {
+					headers: token ? { Authorization: `Bearer ${token}` } : undefined
+				});
+				const fee = Number(res.data?.consultationFee) || 0;
+				if (fee > 0) setConsultationFee(fee);
+			} catch (err) {
+				console.error('Failed to load consultation fee', err);
+			}
+		};
+
+		loadFee();
+	}, [doctorId, token]);
+
 	const handlePayment = async () => {
 		if (!user || !token) return alert('Please login first');
-		if (!doctorId || date === 'N/A' || time === 'N/A') return alert('Missing appointment details');
+		if (!appointmentId || !doctorId || date === 'N/A' || time === 'N/A') return alert('Missing appointment details');
 
 		setPaying(true);
 		try {
 			const res = await axios.post(`${API_BASE_URL}/api/payments/payhere/checkout`, {
+				appointmentId,
 				patientId: user.id,
 				doctorId,
 				date,

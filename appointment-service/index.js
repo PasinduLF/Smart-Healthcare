@@ -21,6 +21,7 @@ const appointmentSchema = new mongoose.Schema({
     doctorId: { type: String, required: true },
     date: { type: String, required: true },
     time: { type: String, required: true },
+    paymentStatus: { type: String, enum: ['paid', 'unpaid'], default: 'unpaid' },
     status: { type: String, enum: ['pending', 'accepted', 'rejected', 'cancelled'], default: 'pending' },
     createdAt: { type: Date, default: Date.now }
 });
@@ -28,8 +29,14 @@ const Appointment = mongoose.model('Appointment', appointmentSchema);
 
 app.post('/book', async (req, res) => {
     try {
-        const { patientId, doctorId, date, time } = req.body;
-        const newAppt = new Appointment({ patientId, doctorId, date, time });
+        const { patientId, doctorId, date, time, paymentStatus } = req.body;
+        const newAppt = new Appointment({
+            patientId,
+            doctorId,
+            date,
+            time,
+            paymentStatus: paymentStatus || 'unpaid'
+        });
         await newAppt.save();
         // Ideally this would emit an event to Payment/Notification service
         res.status(201).json({ message: 'Appointment booked', appointment: newAppt });
@@ -108,6 +115,20 @@ app.put('/reschedule/:id', async (req, res) => {
         );
         if (!appt) return res.status(404).json({ error: 'Appointment not found' });
         res.json({ message: 'Appointment rescheduled', appointment: appt });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/payment/:id', async (req, res) => {
+    try {
+        const appt = await Appointment.findByIdAndUpdate(
+            req.params.id,
+            { paymentStatus: 'paid' },
+            { new: true }
+        );
+        if (!appt) return res.status(404).json({ error: 'Appointment not found' });
+        res.json({ message: 'Payment marked as paid', appointment: appt });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
