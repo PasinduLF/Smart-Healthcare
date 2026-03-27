@@ -61,7 +61,7 @@ services:
       - PAYHERE_MERCHANT_ID=1234712
       - PAYHERE_MERCHANT_SECRET=MTY1OTE5NjAxNzMzNjU1MDk2MDEyODY4NzAxNTAyMTYyNDQyODIz
       - FRONTEND_BASE_URL=https://www.smarthealthcar.me
-      - PAYHERE_NOTIFY_URL=https://www.smarthealthcar.me/api/payments/payhere/notify
+      - PAYHERE_NOTIFY_URL=https://smart-healthcare-payment.onrender.com/payhere/notify
 
   notification-service:
     build: ./notification-service
