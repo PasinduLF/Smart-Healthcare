@@ -59,7 +59,7 @@ services:
     environment:
       - PORT=3005
       - PAYHERE_MERCHANT_ID=1234712
-      - PAYHERE_MERCHANT_SECRET=MTcxOTA5NjA5ODE3MTczMjMwMDczNjI0MDM0OTkwMTYzNDIyOTM0Mw==
+      - PAYHERE_MERCHANT_SECRET=MTY1OTE5NjAxNzMzNjU1MDk2MDEyODY4NzAxNTAyMTYyNDQyODIz
       - FRONTEND_BASE_URL=https://smart-healthcare-ochre.vercel.app
       - PAYHERE_NOTIFY_URL=https://dudley-uncohesive-matt.ngrok-free.dev/payhere/notify
 
