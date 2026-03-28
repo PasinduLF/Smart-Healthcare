@@ -11,7 +11,7 @@ export default function DoctorTelemedicine({ activeCall, setActiveCall }) {
             </h2>
             {activeCall ? (
                 <div className="glass-premium p-1 overflow-hidden rounded-[32px] shadow-2xl shadow-indigo-100">
-                    <VideoCall channelName={activeCall} onEndCall={() => setActiveCall(null)} />
+                    <VideoCall appointmentId={activeCall.id} date={activeCall.date} time={activeCall.time} onEndCall={() => setActiveCall(null)} />
                 </div>
             ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-300 bg-slate-50/50 rounded-[40px] border-4 border-dashed border-slate-100/50">

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Search, Calendar, Video, FileText, Brain, LogOut, Activity, User, Pill } from 'lucide-react';
 import { useNavigate, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -15,9 +16,10 @@ import Telemedicine from './patient/Telemedicine';
 import BookAppointment from './BookAppointment';
 import MyAppointments from './MyAppointments';
 import PatientPaymentService from './PatientPaymentService';
+import VideoCall from '../components/VideoCall';
 
 export default function PatientDashboard() {
-    const { user, logout } = useAuth();
+    const { user, token, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [doctors, setDoctors] = useState([]);
@@ -116,14 +118,80 @@ export default function PatientDashboard() {
         }
     };
 
-    const startTelemedicine = (apptId) => {
-        setActiveCall(`channel-${apptId}`);
+    const startTelemedicine = (appt) => {
+        setActiveCall({ id: appt._id, date: appt.date, time: appt.time });
         navigate('/patient/telemedicine');
     };
 
     const handleLogout = () => {
         logout();
         navigate('/');
+    };
+
+    const handleUpdateProfile = async (e) => {
+        e.preventDefault();
+        try {
+            await axios.put(`http://localhost:3000/api/patients/profile/${user.id}`, profileData, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            alert('Profile updated successfully!');
+        } catch (err) {
+            console.error(err);
+            alert('Failed to update profile');
+        }
+    };
+
+    const handleUpdateHealthProfile = async (e) => {
+        e.preventDefault();
+        try {
+            await axios.put(`http://localhost:3000/api/patients/profile/${user.id}`, {
+                vitals: healthProfile.vitals,
+                allergies: healthProfile.allergies
+            }, { headers: { Authorization: `Bearer ${token}` } });
+            alert('Health profile updated!');
+        } catch (err) {
+            console.error(err);
+            alert('Failed to update health profile');
+        }
+    };
+
+    const handleCheckSymptoms = async (e) => {
+        e.preventDefault();
+        setAiLoading(true);
+        try {
+            const res = await axios.post('http://localhost:3000/api/ai/check-symptoms', {
+                symptoms,
+                patientProfile: healthProfile,
+                patientId: user?.id
+            }, { headers: { Authorization: `Bearer ${token}` } });
+            setAiResponse(res.data);
+        } catch (err) {
+            console.error(err);
+            alert('AI analysis failed');
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
+    const handleUploadReport = async (e) => {
+        e.preventDefault();
+        if (!selectedFile) return;
+        setUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append('report', selectedFile);
+            const res = await axios.post(`http://localhost:3000/api/patients/reports/${user.id}`, formData, {
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+            });
+            setHealthProfile(prev => ({ ...prev, reports: res.data.reports || prev.reports }));
+            setSelectedFile(null);
+            alert('Report uploaded!');
+        } catch (err) {
+            console.error(err);
+            alert('Failed to upload report');
+        } finally {
+            setUploading(false);
+        }
     };
 
     const tabs = [
@@ -167,6 +235,7 @@ export default function PatientDashboard() {
 
             <div className="glass-premium p-8 lg:p-12 min-h-[500px]">
                 <Routes>
+                    <Route index element={<Navigate to="search" replace />} />
                     <Route path="/" element={<Navigate to="search" replace />} />
                     <Route path="search" element={<SearchDoctors />} />
                     <Route path="book/:doctorId" element={<BookAppointment />} />
@@ -193,7 +262,7 @@ export default function PatientDashboard() {
                         <div>
                             <h2 className="text-xl font-semibold mb-6">Telemedicine Session</h2>
                             {activeCall ? (
-                                <VideoCall channelName={activeCall} onEndCall={() => setActiveCall(null)} />
+                                <VideoCall appointmentId={activeCall.id} date={activeCall.date} time={activeCall.time} onEndCall={() => setActiveCall(null)} />
                             ) : (
                                 <div className="flex flex-col items-center justify-center h-64 text-gray-400 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
                                     <Video className="w-12 h-12 mb-4 text-gray-300" />
@@ -309,43 +378,7 @@ export default function PatientDashboard() {
                         </div>
                     } />
                     
-                    <Route path="ai" element={
-                        <div className="space-y-6">
-                            <div className="flex items-center gap-3">
-                                <Brain className="w-8 h-8 text-indigo-600" />
-                                <h2 className="text-2xl font-semibold">Context-Aware AI Diagnostics</h2>
-                            </div>
-                            <p className="text-gray-600">Enter your symptoms below. The AI will securely analyze your input alongside your saved Health Profile (Vitals & Allergies) to provide a detailed preliminary analysis.</p>
-
-                            <form onSubmit={handleCheckSymptoms} className="space-y-4">
-                                <textarea 
-                                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none" 
-                                    rows="4" 
-                                    placeholder="Describe your symptoms in detail (e.g., I have had a severe headache behind my right eye for two days...)"
-                                    value={symptoms}
-                                    onChange={e => setSymptoms(e.target.value)}
-                                    required
-                                ></textarea>
-                                <button type="submit" disabled={aiLoading} className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
-                                    {aiLoading ? 'Analyzing...' : 'Generate AI Diagnosis'}
-                                </button>
-                            </form>
-
-                            {aiResponse && (
-                                <div className="mt-8 p-6 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-4">
-                                    <div>
-                                        <h3 className="font-bold text-indigo-900 mb-2">Detailed Analysis</h3>
-                                        <div className="text-gray-700 whitespace-pre-wrap">{aiResponse.analysis}</div>
-                                    </div>
-                                    <div className="mt-4 pt-4 border-t border-indigo-200">
-                                        <h3 className="font-bold text-indigo-900 mb-2">Recommended Specialty</h3>
-                                        <p className="text-lg font-medium text-indigo-700">{aiResponse.recommendation}</p>
-                                    </div>
-                                    <p className="text-xs text-indigo-400 font-medium italic mt-4">{aiResponse.disclaimer}</p>
-                                </div>
-                            )}
-                        </div>
-                    } />
+                    <Route path="ai" element={<AIAnalyzer />} />
                 </Routes>
             </div>
         </div>
