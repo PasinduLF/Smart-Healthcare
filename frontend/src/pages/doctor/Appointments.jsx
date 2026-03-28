@@ -3,31 +3,6 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { Activity, X } from 'lucide-react';
 
-function parseSlotStart(dateStr, timeStr) {
-    if (!dateStr || !timeStr) return null;
-    const parts = timeStr.trim().split(' ');
-    if (parts.length < 2) return null;
-    const [timePart, meridiem] = parts;
-    let [hours, minutes] = timePart.split(':').map(Number);
-    if (meridiem.toUpperCase() === 'PM' && hours !== 12) hours += 12;
-    if (meridiem.toUpperCase() === 'AM' && hours === 12) hours = 0;
-    const d = new Date(`${dateStr}T00:00:00`);
-    d.setHours(hours, minutes, 0, 0);
-    return d;
-}
-
-function getJoinState(dateStr, timeStr) {
-    const slotStart = parseSlotStart(dateStr, timeStr);
-    if (!slotStart) return { canJoin: false, label: 'Start Consultation', reason: null };
-    const now = Date.now();
-    const joinFrom = slotStart.getTime() - 5 * 60 * 1000;
-    const joinUntil = slotStart.getTime() + 30 * 60 * 1000;
-    const timeStr12 = slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (now < joinFrom) return { canJoin: false, label: `Starts at ${timeStr12}`, reason: 'too_early' };
-    if (now > joinUntil) return { canJoin: false, label: 'Slot Ended', reason: 'too_late' };
-    return { canJoin: true, label: 'Start Consultation', reason: null };
-}
-
 export default function DoctorAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
     const [appointments, setAppointments] = useState([]);
@@ -87,8 +62,8 @@ export default function DoctorAppointments({ setActiveCall }) {
         }
     };
 
-    const startTelemedicine = (apptId, date, time) => {
-        setActiveCall({ id: apptId, date, time });
+    const startTelemedicine = (apptId) => {
+        setActiveCall(`channel-${apptId}`);
     };
 
     if (loading) return <div className="text-center py-10 text-gray-400">Loading appointments...</div>;
@@ -135,19 +110,9 @@ export default function DoctorAppointments({ setActiveCall }) {
                                         <button onClick={() => handleReject(appt._id)} className="px-5 py-2.5 bg-red-50 text-red-600 text-xs font-bold rounded-xl hover:bg-red-100 border border-red-100">Reject</button>
                                     </>
                                 )}
-                                {appt.status === 'accepted' && (() => {
-                                        const { canJoin, label, reason } = getJoinState(appt.date, appt.time);
-                                        return (
-                                            <button
-                                                onClick={() => canJoin && startTelemedicine(appt._id, appt.date, appt.time)}
-                                                disabled={!canJoin}
-                                                title={reason === 'too_early' ? 'Join opens 5 minutes before slot' : reason === 'too_late' ? 'Slot has ended' : ''}
-                                                className={`px-6 py-2.5 text-xs font-bold rounded-xl shadow-lg transition ${canJoin ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100' : 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'}`}
-                                            >
-                                                {label}
-                                            </button>
-                                        );
-                                    })()}
+                                {appt.status === 'accepted' && (
+                                    <button onClick={() => startTelemedicine(appt._id)} className="px-6 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100">Start Consultation</button>
+                                )}
                                 <button onClick={() => viewPatientProfile(appt.patientId)} className="px-5 py-2.5 bg-slate-50 text-slate-600 text-xs font-bold rounded-xl hover:bg-white border border-slate-100 shadow-sm">Patient Details</button>
                             </div>
                         </div>

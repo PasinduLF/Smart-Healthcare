@@ -2,32 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
-// Parse "2:00 PM" + "YYYY-MM-DD" → Date
-function parseSlotStart(dateStr, timeStr) {
-    if (!dateStr || !timeStr) return null;
-    const parts = timeStr.trim().split(' ');
-    if (parts.length < 2) return null;
-    const [timePart, meridiem] = parts;
-    let [hours, minutes] = timePart.split(':').map(Number);
-    if (meridiem.toUpperCase() === 'PM' && hours !== 12) hours += 12;
-    if (meridiem.toUpperCase() === 'AM' && hours === 12) hours = 0;
-    const d = new Date(`${dateStr}T00:00:00`);
-    d.setHours(hours, minutes, 0, 0);
-    return d;
-}
-
-function getJoinState(dateStr, timeStr) {
-    const slotStart = parseSlotStart(dateStr, timeStr);
-    if (!slotStart) return { canJoin: false, label: 'Join Call', reason: null };
-    const now = Date.now();
-    const joinFrom = slotStart.getTime() - 5 * 60 * 1000;
-    const joinUntil = slotStart.getTime() + 30 * 60 * 1000;
-    const timeStr12 = slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (now < joinFrom) return { canJoin: false, label: `Starts at ${timeStr12}`, reason: 'too_early' };
-    if (now > joinUntil) return { canJoin: false, label: 'Slot Ended', reason: 'too_late' };
-    return { canJoin: true, label: 'Join Call', reason: null };
-}
-
 const dayKeyFromDate = (dateStr) => {
     if (!dateStr) return null;
     const date = new Date(`${dateStr}T00:00:00`);
@@ -206,21 +180,12 @@ export default function MyAppointments({
                         <div className="flex gap-2">
                             {appt.status !== 'cancelled' && appt.status !== 'rejected' && rescheduleData.id !== appt._id && (
                                 <>
-                                    {appt.status === 'accepted' && (() => {
-                                        const { canJoin, label, reason } = getJoinState(appt.date, appt.time);
-                                        return (
-                                            <button
-                                                onClick={() => canJoin && startTelemedicine(appt)}
-                                                disabled={!canJoin}
-                                                title={reason === 'too_early' ? `Join opens 5 minutes before slot` : reason === 'too_late' ? 'Slot has ended' : ''}
-                                                className={`px-4 py-2 rounded-lg transition text-sm font-medium ${canJoin ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-                                            >
-                                                {label}
-                                            </button>
-                                        );
-                                    })()}
+                                    {appt.status === 'accepted' && (
+                                        <button onClick={() => startTelemedicine(appt._id)} className="px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition text-sm font-medium">Join Call</button>
+                                    )}
                                     <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition text-sm font-medium">Reschedule</button>
                                     <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-medium">Cancel Appt</button>
+                                    
                                 </>
                             )}
                         </div>
