@@ -57,6 +57,15 @@ const patientSchema = new mongoose.Schema({
 });
 const Patient = mongoose.model('Patient', patientSchema);
 
+const adminSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    role: { type: String, default: 'admin' },
+    createdAt: { type: Date, default: Date.now }
+});
+const Admin = mongoose.model('Admin', adminSchema);
+
 const jwt = require('jsonwebtoken');
 
 // Register new patient
@@ -76,18 +85,50 @@ app.post('/register', async (req, res) => {
     }
 });
 
-// Login patient
+// Login patient (with Admin fallback)
 app.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        const patient = await Patient.findOne({ email });
-        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+        
+        // Check Patients first
+        let user = await Patient.findOne({ email });
+        let role = 'patient';
+        
+        // If not found, check Admins
+        if (!user) {
+            user = await Admin.findOne({ email });
+            role = 'admin';
+        }
+        
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
+        
+        const token = jwt.sign({ id: user._id, role }, process.env.JWT_SECRET || 'supersecret_key', { expiresIn: role === 'admin' ? '1d' : '1h' });
+        
+        const responseData = { message: 'Login successful', token };
+        if (role === 'admin') responseData.admin = { id: user._id, name: user.name, email: user.email, role: 'admin' };
+        else responseData.patient = { id: user._id, name: user.name, email: user.email };
+        
+        res.json(responseData);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
-        const isMatch = await bcrypt.compare(password, patient.password);
+// Admin Login
+app.post('/admin-login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const admin = await Admin.findOne({ email });
+        if (!admin) return res.status(404).json({ error: 'Admin account not found' });
+
+        const isMatch = await bcrypt.compare(password, admin.password);
         if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
-        const token = jwt.sign({ id: patient._id, role: 'patient' }, process.env.JWT_SECRET || 'supersecret_key', { expiresIn: '1h' });
-        res.json({ message: 'Login successful', token, patient: { id: patient._id, name: patient.name, email: patient.email } });
+        const token = jwt.sign({ id: admin._id, role: 'admin' }, process.env.JWT_SECRET || 'supersecret_key', { expiresIn: '1d' });
+        res.json({ message: 'Admin login successful', token, admin: { id: admin._id, name: admin.name, email: admin.email, role: 'admin' } });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -174,4 +215,26 @@ app.get('/health', (req, res) => {
     res.json({ status: 'Patient Service is running' });
 });
 
-app.listen(PORT, () => console.log(`Patient Service listening on port ${PORT}`));
+// Seed Admin if not exists
+const seedAdmin = async () => {
+    try {
+        const adminCount = await Admin.countDocuments();
+        if (adminCount === 0) {
+            const hashedPassword = await bcrypt.hash('admin123', 10);
+            const defaultAdmin = new Admin({
+                name: 'System Administrator',
+                email: 'admin@smarthealth.com',
+                password: hashedPassword
+            });
+            await defaultAdmin.save();
+            console.log('Default admin seeded: admin@smarthealth.com / admin123');
+        }
+    } catch (err) {
+        console.error('Error seeding admin:', err);
+    }
+};
+
+app.listen(PORT, () => {
+    console.log(`Patient Service listening on port ${PORT}`);
+    seedAdmin();
+});

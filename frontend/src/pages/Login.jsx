@@ -15,14 +15,11 @@ export default function Login() {
         e.preventDefault();
         setError('');
         
-        if (email.includes('admin')) {
-            navigate('/admin');
-            return;
-        }
-
         const res = await login(email, password, role);
         if (res.success) {
-            navigate(role === 'doctor' ? '/doctor' : '/patient');
+            if (res.role === 'admin') navigate('/admin');
+            else if (res.role === 'doctor') navigate('/doctor');
+            else navigate('/patient');
         } else {
             setError(res.error || 'Login failed');
         }
@@ -55,14 +52,14 @@ export default function Login() {
                         <button 
                             type="button"
                             onClick={() => setRole('patient')}
-                            className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${role === 'patient' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${role === 'patient' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             Patient
                         </button>
                         <button 
                             type="button"
                             onClick={() => setRole('doctor')}
-                            className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${role === 'doctor' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${role === 'doctor' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             Doctor
                         </button>

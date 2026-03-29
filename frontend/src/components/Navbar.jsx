@@ -16,6 +16,12 @@ export default function Navbar() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
+    const handleLogout = () => {
+        logout();
+        navigate('/');
+        setIsMenuOpen(false);
+    };
+
     const publicLinks = [
         { name: 'Home', path: '/' },
         { name: 'Services', path: '/services' },
@@ -37,9 +43,10 @@ export default function Navbar() {
     ];
 
     const adminLinks = [
-        { name: 'User Management', path: '/admin/users' },
+        { name: 'Overview', path: '/admin' },
+        { name: 'Users', path: '/admin/users' },
         { name: 'Revenue', path: '/admin/payments' },
-        { name: 'System Settings', path: '/admin/settings' },
+        { name: 'Settings', path: '/admin/settings' },
     ];
 
     const getRoleLinks = () => {
@@ -102,7 +109,7 @@ export default function Navbar() {
                                 {user.name.split(' ')[0]}
                             </Link>
                             <button
-                                onClick={logout}
+                                onClick={handleLogout}
                                 className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                                 title="Logout"
                             >
@@ -150,7 +157,7 @@ export default function Navbar() {
                         {user ? (
                             <div className="space-y-3">
                                 <button
-                                    onClick={() => { logout(); setIsMenuOpen(false); }}
+                                    onClick={handleLogout}
                                     className="w-full py-4 text-red-600 font-bold border border-red-100 rounded-2xl bg-red-50"
                                 >
                                     Sign Out

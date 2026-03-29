@@ -43,13 +43,34 @@ app.get('/health', (req, res) => {
     res.json({ status: 'API Gateway is running' });
 });
 
-// Patient Service (Auth/Registration typically unauthenticated, other routes authenticated)
+// Admin specific routes from services (protected by role)
+app.get('/api/patients/stats', authenticateToken, requireRole(['admin']), createProxyMiddleware({
+    target: process.env.PATIENT_SERVICE_URL || 'http://localhost:3001',
+    changeOrigin: true,
+}));
+
+app.get('/api/doctors/stats', authenticateToken, requireRole(['admin']), createProxyMiddleware({
+    target: process.env.DOCTOR_SERVICE_URL || 'http://localhost:3002',
+    changeOrigin: true,
+}));
+
+app.get('/api/doctors/pending', authenticateToken, requireRole(['admin']), createProxyMiddleware({
+    target: process.env.DOCTOR_SERVICE_URL || 'http://localhost:3002',
+    changeOrigin: true,
+}));
+
+app.put('/api/doctors/verify/:id', authenticateToken, requireRole(['admin']), createProxyMiddleware({
+    target: process.env.DOCTOR_SERVICE_URL || 'http://localhost:3002',
+    changeOrigin: true,
+}));
+
+// Patient Service (Public routes like login/register)
 app.use('/api/patients', createProxyMiddleware({
     target: process.env.PATIENT_SERVICE_URL || 'http://localhost:3001',
     changeOrigin: true,
 }));
 
-// Doctor Service
+// Doctor Service (Public routes like list/login/register)
 app.use('/api/doctors', createProxyMiddleware({
     target: process.env.DOCTOR_SERVICE_URL || 'http://localhost:3002',
     changeOrigin: true,

@@ -34,6 +34,7 @@ import DoctorPrescriptions from './pages/doctor/Prescriptions';
 import DoctorTelemedicine from './pages/doctor/Telemedicine';
 
 // Admin Pages
+import AdminDashboard from './pages/admin/AdminDashboard';
 import UsersOverview from './pages/admin/UsersOverview';
 import AdminPayments from './pages/admin/Payments';
 import AdminSettings from './pages/admin/Settings';
@@ -42,6 +43,18 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useState } from 'react';
 
+// --- Protected Route Component ---
+const ProtectedRoute = ({ children, allowedRoles }) => {
+    const { user, token } = useAuth();
+    
+    if (!token) return <Navigate to="/login" replace />;
+    if (allowedRoles && !allowedRoles.includes(user?.role)) {
+        return <Navigate to="/" replace />;
+    }
+    
+    return children;
+};
+
 function AppContent() {
     const { user } = useAuth();
     const [activeCall, setActiveCall] = useState(null);
@@ -49,7 +62,7 @@ function AppContent() {
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
             <Navbar />
-            
+
             <main className="flex-grow pt-20">
                 <Routes>
                     <Route path="/" element={<Home />} />
@@ -58,9 +71,15 @@ function AppContent() {
                     <Route path="/contact" element={<Contact />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
-                    
+
                     {/* Patient Routes */}
-                    <Route path="/patient" element={<div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500"><Outlet /></div>}>
+                    <Route path="/patient" element={
+                        <ProtectedRoute allowedRoles={['patient']}>
+                            <div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500">
+                                <Outlet />
+                            </div>
+                        </ProtectedRoute>
+                    }>
                         <Route index element={<Navigate to="search" replace />} />
                         <Route path="search" element={<SearchDoctors />} />
                         <Route path="book/:doctorId" element={<BookAppointment />} />
@@ -76,7 +95,13 @@ function AppContent() {
                     </Route>
 
                     {/* Doctor Routes */}
-                    <Route path="/doctor" element={<div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500"><Outlet /></div>}>
+                    <Route path="/doctor" element={
+                        <ProtectedRoute allowedRoles={['doctor']}>
+                            <div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500">
+                                <Outlet />
+                            </div>
+                        </ProtectedRoute>
+                    }>
                         <Route index element={<Navigate to="appointments" replace />} />
                         <Route path="schedule" element={<DoctorSchedule />} />
                         <Route path="appointments" element={<DoctorAppointments setActiveCall={setActiveCall} />} />
@@ -85,8 +110,14 @@ function AppContent() {
                     </Route>
 
                     {/* Admin Routes */}
-                    <Route path="/admin" element={<div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500"><Outlet /></div>}>
-                        <Route index element={<Navigate to="users" replace />} />
+                    <Route path="/admin" element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                            <div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500">
+                                <Outlet />
+                            </div>
+                        </ProtectedRoute>
+                    }>
+                        <Route index element={<AdminDashboard />} />
                         <Route path="users" element={<UsersOverview />} />
                         <Route path="payments" element={<AdminPayments />} />
                         <Route path="settings" element={<AdminSettings />} />
