@@ -47,21 +47,25 @@ app.get('/health', (req, res) => {
 app.get('/api/patients/stats', authenticateToken, requireRole(['admin']), createProxyMiddleware({
     target: process.env.PATIENT_SERVICE_URL || 'http://localhost:3001',
     changeOrigin: true,
+    pathRewrite: () => '/stats'
 }));
 
 app.get('/api/doctors/stats', authenticateToken, requireRole(['admin']), createProxyMiddleware({
     target: process.env.DOCTOR_SERVICE_URL || 'http://localhost:3002',
     changeOrigin: true,
+    pathRewrite: () => '/stats'
 }));
 
 app.get('/api/doctors/pending', authenticateToken, requireRole(['admin']), createProxyMiddleware({
     target: process.env.DOCTOR_SERVICE_URL || 'http://localhost:3002',
     changeOrigin: true,
+    pathRewrite: () => '/pending'
 }));
 
 app.put('/api/doctors/verify/:id', authenticateToken, requireRole(['admin']), createProxyMiddleware({
     target: process.env.DOCTOR_SERVICE_URL || 'http://localhost:3002',
     changeOrigin: true,
+    pathRewrite: { '^/api/doctors': '' }
 }));
 
 // Patient Service (Public routes like login/register)
@@ -106,7 +110,13 @@ app.use('/api/notifications', createProxyMiddleware({
     changeOrigin: true,
 }));
 
-// AI Symptom Checker Service
+// AI Support & Symptom Checker Service
+app.use('/api/ai/support', createProxyMiddleware({
+    target: process.env.AI_SERVICE_URL || 'http://localhost:3007',
+    changeOrigin: true,
+    pathRewrite: () => '/support'
+}));
+
 app.use('/api/ai', authenticateToken, createProxyMiddleware({
     target: process.env.AI_SERVICE_URL || 'http://localhost:3007',
     changeOrigin: true,

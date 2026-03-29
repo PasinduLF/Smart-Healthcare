@@ -33,7 +33,40 @@ const symptomCheckSchema = new mongoose.Schema({
 const SymptomCheck = mongoose.model('SymptomCheck', symptomCheckSchema);
 
 // --- Gemini AI Setup ---
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+const DEFAULT_GEMINI_MODELS = [
+    process.env.GEMINI_MODEL,
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash'
+].filter(Boolean);
+
+const isRetriableModelError = (err) => {
+    const msg = (err && err.message ? err.message : '').toLowerCase();
+    return msg.includes('404') || msg.includes('not found') || msg.includes('not supported');
+};
+
+const runWithGeminiModelFallback = async (runner) => {
+    let lastErr;
+
+    for (const modelName of DEFAULT_GEMINI_MODELS) {
+        try {
+            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+            const model = genAI.getGenerativeModel({ model: modelName });
+            return await runner(model, modelName);
+        } catch (err) {
+            lastErr = err;
+            if (!isRetriableModelError(err)) {
+                throw err;
+            }
+            console.warn(`Gemini model ${modelName} unavailable, trying next fallback.`);
+        }
+    }
+
+    throw lastErr || new Error('No supported Gemini model available.');
+};
 
 const symptomDictionary = {
     "fever": { specialty: "General Physician / Infectious Disease Specialist", severity: "moderate" },
@@ -61,9 +94,6 @@ app.post('/check-symptoms', async (req, res) => {
     // --- Try Gemini AI first ---
     if (process.env.GEMINI_API_KEY) {
         try {
-            const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
             let contextStr = "Patient Context: No additional history provided.";
             if (patientProfile) {
                 contextStr = `Patient Context:
@@ -99,9 +129,13 @@ Rules:
 - Include at least 2 emergency warning signs to watch for
 - The fullAnalysis should be detailed and professional`;
 
-            const result_ai = await model.generateContent(prompt);
-            const response_ai = await result_ai.response;
-            let rawText = response_ai.text().trim();
+            let rawText = await runWithGeminiModelFallback(async (model, modelName) => {
+                const result_ai = await model.generateContent(prompt);
+                const response_ai = await result_ai.response;
+                console.log(`Gemini model used for symptom check: ${modelName}`);
+                return response_ai.text().trim();
+            });
+
             // Strip markdown code fences if present
             if (rawText.startsWith('```')) {
                 rawText = rawText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
@@ -207,6 +241,108 @@ app.get('/history/:patientId', async (req, res) => {
 // --- Health Check ---
 app.get('/health', (req, res) => {
     res.json({ status: 'AI Symptom Checker Service is running', geminiEnabled: !!process.env.GEMINI_API_KEY });
+});
+
+// --- SYSTEM SUPPORT CHAT ---
+const systemKnowledgeBase = `
+You are the Smart Healthcare Platform Assistant. Your ONLY goal is to help users navigate and use the Smart Healthcare system.
+If a user asks a question NOT related to the system or health, politely redirect them.
+
+SYSTEM MANUAL:
+1. Registration & Login:
+   - Users can join as a Patient or a Doctor.
+   - Admins can log in through the standard portal using their credentials.
+   - Profile management is available in the top-right user menu.
+
+2. Booking Appointments:
+   - Go to "Find Doctors" to search by specialty.
+   - Select a doctor, choose an available time slot, and proceed to payment.
+   - Payments are handled via PayHere (Visa/MasterCard/Amex).
+
+3. AI Symptom Checker (AI Analyzer):
+   - Access the "AI Checker" link in the navbar.
+   - Describe your symptoms in detail.
+   - The AI provides a preliminary assessment and recommends a specialist. 
+   - NOTE: This is NOT medical advice, only a suggestion.
+
+4. Telemedicine & Appointments:
+   - Navigate to "My Appointments" to see your scheduled sessions.
+   - For video consultations, click "Start Call" when your appointment time arrives.
+   - Doctors can issue Digital Prescriptions during or after the call.
+
+5. Medical Reports:
+   - Patients can upload PDFs/Images to "Medical Reports".
+   - Doctors assigned to your appointment can view these reports.
+
+6. Refunds & Support:
+   - For all payment issues or account problems, use the "Contact" page to reach administration.
+   - The system is online 24/7.
+`;
+
+const getOfflineSupportResponse = (message = '') => {
+    const text = message.toLowerCase();
+
+    if (text.includes('book') || text.includes('appointment') || text.includes('find doctor')) {
+        return 'You can book an appointment in 3 steps: open "Find Doctors", choose a specialist and available time slot, then complete payment. After booking, check "My Appointments" for updates.';
+    }
+
+    if (text.includes('login') || text.includes('register') || text.includes('sign up') || text.includes('account')) {
+        return 'Use the main portal to register or log in as Patient or Doctor. Admin users also log in from the same portal with their credentials. After login, you can manage your profile from the top-right user menu.';
+    }
+
+    if (text.includes('ai') || text.includes('symptom') || text.includes('analyzer') || text.includes('checker')) {
+        return 'To use the AI Symptom Checker, open the "AI Checker" link in the navbar and describe your symptoms in detail. It will provide a preliminary assessment and suggest a specialist. This is guidance only, not a medical diagnosis.';
+    }
+
+    if (text.includes('call') || text.includes('video') || text.includes('telemedicine')) {
+        return 'For telemedicine, open "My Appointments" and click "Start Call" when the scheduled time arrives. Doctors can issue digital prescriptions during or after the consultation.';
+    }
+
+    if (text.includes('report') || text.includes('upload') || text.includes('pdf') || text.includes('image')) {
+        return 'Patients can upload PDF/image records in "Medical Reports". Doctors assigned to your appointment can review those reports from their dashboard.';
+    }
+
+    if (text.includes('payment') || text.includes('refund') || text.includes('payhere')) {
+        return 'Payments are handled through PayHere. For payment failures, refunds, or billing disputes, please use the Contact page so the admin team can assist you quickly.';
+    }
+
+    return 'I am currently in offline support mode. I can still help with navigation: booking appointments, login/register, AI Checker, telemedicine, reports, and payments. For account or payment issues, please use the Contact page.';
+};
+
+app.post('/support', async (req, res) => {
+    const { message, history } = req.body;
+    if (!message) return res.status(400).json({ error: 'Message is required' });
+
+    if (!process.env.GEMINI_API_KEY) {
+        return res.json({ response: getOfflineSupportResponse(message) });
+    }
+
+    try {
+        const normalizedHistory = [
+            { role: 'user', parts: [{ text: "Context: " + systemKnowledgeBase }] },
+            { role: 'model', parts: [{ text: "Understood. I will help the user based on these instructions." }] },
+            ...((history || [])
+                .map(h => ({
+                    role: h.role === 'user' ? 'user' : 'model',
+                    parts: [{ text: h.text }]
+                }))
+                .filter((h, i) => i > 0 || h.role === 'user') // Ensure we follow role sequence
+            )
+        ];
+
+        const responseText = await runWithGeminiModelFallback(async (model, modelName) => {
+            const chat = model.startChat({ history: normalizedHistory });
+            const result = await chat.sendMessage(message);
+            const response = await result.response;
+            console.log(`Gemini model used for support chat: ${modelName}`);
+            return response.text();
+        });
+
+        res.json({ response: responseText });
+    } catch (err) {
+        process.stdout.write(`Support Chat Error: ${err.message}\n`);
+        res.json({ response: getOfflineSupportResponse(message) });
+    }
 });
 
 app.listen(PORT, () => console.log(`AI Service listening on port ${PORT}`));
