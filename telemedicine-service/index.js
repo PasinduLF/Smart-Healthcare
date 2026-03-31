@@ -52,19 +52,24 @@ const Session = mongoose.model('TeleSession', sessionSchema);
 
 /** "2:00 PM" + "2025-03-28" → Date (treated as UTC wall-clock, no offset) */
 function parseSlotStart(dateStr, timeStr) {
+    if (!dateStr || !timeStr) return new Date();
     const trimmed = timeStr.trim();
-    let h, m;
-    if (trimmed.includes('AM') || trimmed.includes('PM')) {
-        const [timePart, meridiem] = trimmed.split(' ');
-        [h, m] = timePart.split(':').map(Number);
-        if (meridiem.toUpperCase() === 'PM' && h !== 12) h += 12;
-        if (meridiem.toUpperCase() === 'AM' && h === 12) h  =  0;
-    } else {
-        [h, m] = trimmed.split(':').map(Number);
+    let h = 0, m = 0;
+    try {
+        if (trimmed.toUpperCase().includes('AM') || trimmed.toUpperCase().includes('PM')) {
+            const parts = trimmed.split(' ');
+            const meridiem = parts[parts.length - 1].toUpperCase();
+            [h, m] = parts[0].split(':').map(Number);
+            if (meridiem === 'PM' && h !== 12) h += 12;
+            if (meridiem === 'AM' && h === 12) h = 0;
+        } else {
+            [h, m] = trimmed.split(':').map(Number);
+        }
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(Date.UTC(year, month - 1, day, h, m, 0, 0));
+    } catch (e) {
+        return new Date();
     }
-    // Store as UTC using the date+time as-is (no timezone offset applied)
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(Date.UTC(year, month - 1, day, h, m, 0, 0));
 }
 
 function computeRemainingMs(session) {
@@ -115,6 +120,15 @@ app.get('/session/:appointmentId', async (req, res) => {
         const s = await Session.findOne({ appointmentId: req.params.appointmentId });
         if (!s) return res.status(404).json({ error: 'Not found' });
         res.json(toClient(s));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Fetch only chat messages for a session
+app.get('/session/:appointmentId/chat', async (req, res) => {
+    try {
+        const s = await Session.findOne({ appointmentId: req.params.appointmentId });
+        if (!s) return res.json([]);
+        res.json(s.chat || []);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
