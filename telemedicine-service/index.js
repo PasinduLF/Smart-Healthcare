@@ -52,10 +52,18 @@ const Session = mongoose.model('TeleSession', sessionSchema);
 
 /** "2:00 PM" + "2025-03-28" → Date */
 function parseSlotStart(dateStr, timeStr) {
-    const [timePart, meridiem] = timeStr.trim().split(' ');
-    let [h, m] = timePart.split(':').map(Number);
-    if (meridiem.toUpperCase() === 'PM' && h !== 12) h += 12;
-    if (meridiem.toUpperCase() === 'AM' && h === 12) h  =  0;
+    const trimmed = timeStr.trim();
+    let h, m;
+    if (trimmed.includes('AM') || trimmed.includes('PM')) {
+        // "2:00 PM" format
+        const [timePart, meridiem] = trimmed.split(' ');
+        [h, m] = timePart.split(':').map(Number);
+        if (meridiem.toUpperCase() === 'PM' && h !== 12) h += 12;
+        if (meridiem.toUpperCase() === 'AM' && h === 12) h  =  0;
+    } else {
+        // "14:00" 24hr format
+        [h, m] = trimmed.split(':').map(Number);
+    }
     const d = new Date(`${dateStr}T00:00:00`);
     d.setHours(h, m, 0, 0);
     return d;
