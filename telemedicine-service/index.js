@@ -90,10 +90,10 @@ function toClient(s) {
 // Idempotent session bootstrap — called by frontend before socket join
 app.post('/session/init', async (req, res) => {
     const { appointmentId, patientId, doctorId, date, time } = req.body;
-    if (!appointmentId || !date || !time)
-        return res.status(400).json({ error: 'appointmentId, date and time are required' });
+    if (!appointmentId)
+        return res.status(400).json({ error: 'appointmentId is required' });
     try {
-        const slotStart = parseSlotStart(date, time);
+        const slotStart = (date && time) ? parseSlotStart(date, time) : new Date();
         const s = await Session.findOneAndUpdate(
             { appointmentId },
             { $setOnInsert: {

@@ -224,19 +224,29 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
         });
 
         // ── get media then join ───────────────────────────────────────────────
-        const joinSession = () => {
-            fetch(`${TELE_URL}/session/init`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    appointmentId,
-                    patientId: role === 'patient' ? user?.id : undefined,
-                    doctorId:  role === 'doctor'  ? user?.id : undefined,
-                    date, time
-                })
-            })
-            .then(() => socket.emit('join-session', { appointmentId, role, name }))
-            .catch(() => socket.emit('join-session', { appointmentId, role, name }));
+        const joinSession = async () => {
+            try {
+                const res = await fetch(`${TELE_URL}/session/init`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        appointmentId,
+                        patientId: role === 'patient' ? user?.id : undefined,
+                        doctorId:  role === 'doctor'  ? user?.id : undefined,
+                        date, time
+                    })
+                });
+                if (!res.ok) {
+                    const body = await res.json().catch(() => ({}));
+                    console.error('session/init failed:', body);
+                    if (mounted) setPhase('error');
+                    return;
+                }
+                socket.emit('join-session', { appointmentId, role, name });
+            } catch (err) {
+                console.error('session/init network error:', err);
+                if (mounted) setPhase('error');
+            }
         };
 
         navigator.mediaDevices.getUserMedia({ video: true, audio: true })
