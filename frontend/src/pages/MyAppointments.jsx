@@ -7,15 +7,20 @@ import { useLocation, useNavigate } from 'react-router-dom';
 // ── slot-window helpers ───────────────────────────────────────────────────────
 function parseSlotStart(dateStr, timeStr) {
     if (!dateStr || !timeStr) return null;
-    const parts = timeStr.trim().split(' ');
-    if (parts.length < 2) return null;
-    let [h, m] = parts[0].split(':').map(Number);
-    const mer = parts[1].toUpperCase();
-    if (mer === 'PM' && h !== 12) h += 12;
-    if (mer === 'AM' && h === 12) h  =  0;
-    const d = new Date(`${dateStr}T00:00:00`);
-    d.setHours(h, m, 0, 0);
-    return d;
+    const trimmed = timeStr.trim();
+    const parts = trimmed.split(' ');
+    let h, m;
+    if (parts.length >= 2) {
+        [h, m] = parts[0].split(':').map(Number);
+        const mer = parts[1].toUpperCase();
+        if (mer === 'PM' && h !== 12) h += 12;
+        if (mer === 'AM' && h === 12) h  =  0;
+    } else {
+        [h, m] = trimmed.split(':').map(Number);
+    }
+    // Use UTC to match the backend — no local timezone offset
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day, h, m, 0, 0));
 }
 
 function getJoinState(dateStr, timeStr) {
