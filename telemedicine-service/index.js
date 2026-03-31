@@ -152,31 +152,28 @@ io.on('connection', socket => {
         if (!appointmentId || !role) return;
 
         const s = await Session.findOne({ appointmentId });
-        if (!s) return socket.emit('session-error', { code: 'not_found' });
+        if (!s) return socket.emit('session-error', { code: 'not_found', message: 'not_found' });
 
         const now      = Date.now();
         const joinFrom  = s.slotStart.getTime() - EARLY_JOIN_MS;
         const joinUntil = s.slotEnd.getTime();
 
-        // ── time-window checks ────────────────────────────────────────────────
         if (now < joinFrom) {
             return socket.emit('session-error', {
-                code: 'too_early',
+                code: 'too_early', message: 'too_early',
                 slotStart: s.slotStart
             });
         }
 
         if (now > joinUntil) {
-            // After slot end: only allow rejoin if session was already active/completed
             if (s.status === 'waiting') {
                 s.status = 'missed';
                 await s.save();
-                return socket.emit('session-error', { code: 'missed' });
+                return socket.emit('session-error', { code: 'missed', message: 'too_late' });
             }
             if (s.status === 'completed') {
-                return socket.emit('session-error', { code: 'completed', completedAt: s.completedAt });
+                return socket.emit('session-error', { code: 'completed', message: 'completed', completedAt: s.completedAt });
             }
-            // status === 'active' → allow rejoin even after slot end (timer still running)
         }
 
         // ── join room ─────────────────────────────────────────────────────────
