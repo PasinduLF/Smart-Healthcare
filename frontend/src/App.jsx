@@ -57,6 +57,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
 function AppContent() {
     const { user } = useAuth();
+    // activeCall: { id, date, time } | null
     const [activeCall, setActiveCall] = useState(null);
 
     return (
