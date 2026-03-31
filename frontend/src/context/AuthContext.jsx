@@ -30,17 +30,34 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password, role) => {
         try {
+            // Determine the service endpoint based on the UI role selection
             const endpoint = role === 'doctor' ? '/api/doctors/login' : '/api/patients/login';
+
             const response = await axios.post(`http://localhost:3000${endpoint}`, { email, password });
             
             const newToken = response.data.token;
-            const loggedInUser = role === 'doctor' ? response.data.doctor : response.data.patient;
-            const userData = { ...loggedInUser, role };
+            
+            // Dynamically determine ACTUAL role from backend response
+            let activeRole = role; 
+            let loggedInUser = null;
+
+            if (response.data.admin) {
+                activeRole = 'admin';
+                loggedInUser = response.data.admin;
+            } else if (response.data.doctor) {
+                activeRole = 'doctor';
+                loggedInUser = response.data.doctor;
+            } else {
+                activeRole = 'patient';
+                loggedInUser = response.data.patient;
+            }
+
+            const userData = { ...loggedInUser, role: activeRole };
 
             setToken(newToken);
             setUser(userData);
             
-            return { success: true, role };
+            return { success: true, role: activeRole };
         } catch (error) {
             console.error('Login error:', error.response?.data?.error || error.message);
             return { success: false, error: error.response?.data?.error || 'Login failed' };

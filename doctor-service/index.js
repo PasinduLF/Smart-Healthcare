@@ -33,6 +33,15 @@ const doctorSchema = new mongoose.Schema({
 });
 const Doctor = mongoose.model('Doctor', doctorSchema);
 
+const adminSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    role: { type: String, default: 'admin' },
+    createdAt: { type: Date, default: Date.now }
+});
+const Admin = mongoose.model('Admin', adminSchema);
+
 const prescriptionSchema = new mongoose.Schema({
     doctorId: { type: String, required: true },
     patientId: { type: String, required: true },
@@ -67,19 +76,37 @@ app.post('/register', async (req, res) => {
     }
 });
 
+// Login doctor (with Admin fallback)
 app.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        const doctor = await Doctor.findOne({ email });
-        if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
-
-        const isMatch = await bcrypt.compare(password, doctor.password);
+        
+        // Check Doctors first
+        let user = await Doctor.findOne({ email });
+        let role = 'doctor';
+        
+        // If not found, check Admins
+        if (!user) {
+            user = await Admin.findOne({ email });
+            role = 'admin';
+        }
+        
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        
+        const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
-
-        // Generate token even if not verified yet, but frontend/auth middleware checks verification status if needed. 
-        // We'll pass the verification status to the frontend.
-        const token = jwt.sign({ id: doctor._id, role: 'doctor', verified: doctor.verified }, process.env.JWT_SECRET || 'supersecret_key', { expiresIn: '1h' });
-        res.json({ message: 'Login successful', token, doctor: { id: doctor._id, name: doctor.name, email: doctor.email, verified: doctor.verified } });
+        
+        const token = jwt.sign({ 
+            id: user._id, 
+            role, 
+            verified: role === 'doctor' ? user.verified : true 
+        }, process.env.JWT_SECRET || 'supersecret_key', { expiresIn: role === 'admin' ? '1d' : '1h' });
+        
+        const responseData = { message: 'Login successful', token };
+        if (role === 'admin') responseData.admin = { id: user._id, name: user.name, email: user.email, role: 'admin' };
+        else responseData.doctor = { id: user._id, name: user.name, email: user.email, verified: user.verified };
+        
+        res.json(responseData);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
