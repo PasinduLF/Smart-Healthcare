@@ -1,9 +1,19 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Users } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Users, MessageSquare } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 
-const TELE_URL = 'http://localhost:3004';
+const TELE_URL = import.meta.env.VITE_TELE_URL || 'http://localhost:3004';
+
+const ICE_SERVERS = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'turn:openrelay.metered.ca:80',        username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443',       username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+    ]
+};
 
 function fmt(ms) {
     if (ms <= 0) return '00:00';
@@ -11,12 +21,13 @@ function fmt(ms) {
     return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
-function StatusScreen({ icon, title, subtitle, onClose }) {
+function StatusScreen({ icon, title, subtitle, onClose, children }) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[320px] bg-gray-900 rounded-2xl text-center px-8 py-12 gap-4">
             {icon}
             <h3 className="text-white text-xl font-bold">{title}</h3>
             <p className="text-gray-400 text-sm max-w-xs leading-relaxed">{subtitle}</p>
+            {children}
             {onClose && (
                 <button onClick={onClose} className="mt-2 px-6 py-2 bg-gray-700 text-white rounded-xl text-sm hover:bg-gray-600 transition">
                     Close
@@ -26,41 +37,40 @@ function StatusScreen({ icon, title, subtitle, onClose }) {
     );
 }
 
-/**
- * Props:
- *   appointmentId  – MongoDB appointment _id
- *   date           – "YYYY-MM-DD"
- *   time           – "2:00 PM"
- *   onEndCall      – callback when user closes the call
- */
 export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     const { user } = useAuth();
-    const role = user?.role;   // 'patient' | 'doctor'
+    const role = user?.role;
     const name = user?.name || role;
 
-    const localVideoRef = useRef(null);
-    const socketRef     = useRef(null);
-    const tickRef       = useRef(null);
+    // refs
+    const localVideoRef  = useRef(null);
+    const remoteVideoRef = useRef(null);
+    const socketRef      = useRef(null);
+    const pcRef          = useRef(null);
+    const localStreamRef = useRef(null);
+    const tickRef        = useRef(null);
+    const makingOffer    = useRef(false);
+    const chatEndRef     = useRef(null);
 
-    const [mediaError,     setMediaError]     = useState('');
-    const [hasVideo,       setHasVideo]       = useState(true);
-    const [hasAudio,       setHasAudio]       = useState(true);
-    const [stream,         setStream]         = useState(null);
+    // media
+    const [hasVideo,     setHasVideo]     = useState(true);
+    const [hasAudio,     setHasAudio]     = useState(true);
+    const [mediaError,   setMediaError]   = useState('');
+    const [remoteStream, setRemoteStream] = useState(false);
 
-    // session state
-    const [phase,          setPhase]          = useState('connecting');
-    // phase: connecting | waiting | active | completed | missed | too_early | too_late | error
-    const [remainingMs,    setRemainingMs]     = useState(null);
-    const [timerRunning,   setTimerRunning]    = useState(false);
-    const [slotStart,      setSlotStart]       = useState(null);
-    const [otherPresent,   setOtherPresent]    = useState(false);
+    // session
+    const [phase,        setPhase]        = useState('connecting');
+    const [remainingMs,  setRemainingMs]  = useState(null);
+    const [timerRunning, setTimerRunning] = useState(false);
+    const [slotStart,    setSlotStart]    = useState(null);
+    const [otherPresent, setOtherPresent] = useState(false);
 
     // chat
     const [messages,    setMessages]    = useState([]);
     const [newMessage,  setNewMessage]  = useState('');
-    const chatEndRef = useRef(null);
+    const [showChat,    setShowChat]    = useState(true);
 
-    // ── local countdown tick ──────────────────────────────────────────────────
+    // ── local countdown ───────────────────────────────────────────────────────
     useEffect(() => {
         clearInterval(tickRef.current);
         if (timerRunning && remainingMs > 0) {
@@ -72,52 +82,91 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             }, 1000);
         }
         return () => clearInterval(tickRef.current);
-    }, [timerRunning]); // only re-run when running state changes
+    }, [timerRunning]);
 
-    useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+    useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-    const stopMedia = useCallback(() => {
-        setStream(prev => {
-            prev?.getTracks().forEach(t => t.stop());
-            return null;
-        });
-    }, []);
+    // ── WebRTC peer connection ────────────────────────────────────────────────
+    const createPC = useCallback((socket) => {
+        if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
+        const pc = new RTCPeerConnection(ICE_SERVERS);
+        pcRef.current = pc;
 
-    // ── main effect: media + socket ───────────────────────────────────────────
+        // add local tracks
+        localStreamRef.current?.getTracks().forEach(t => pc.addTrack(t, localStreamRef.current));
+
+        // remote tracks → show remote video
+        pc.ontrack = (e) => {
+            if (remoteVideoRef.current && e.streams[0]) {
+                remoteVideoRef.current.srcObject = e.streams[0];
+                setRemoteStream(true);
+            }
+        };
+
+        // ICE candidates
+        pc.onicecandidate = (e) => {
+            if (e.candidate) socket.emit('webrtc-ice-candidate', { appointmentId, candidate: e.candidate });
+        };
+
+        // negotiation — whoever is already in room when other joins will trigger this
+        pc.onnegotiationneeded = async () => {
+            try {
+                makingOffer.current = true;
+                const offer = await pc.createOffer();
+                if (pc.signalingState !== 'stable') return;
+                await pc.setLocalDescription(offer);
+                socket.emit('webrtc-offer', { appointmentId, offer: pc.localDescription });
+            } catch (err) {
+                console.error('Offer error:', err);
+            } finally {
+                makingOffer.current = false;
+            }
+        };
+
+        pc.onconnectionstatechange = () => {
+            if (pc.connectionState === 'failed') pc.restartIce();
+        };
+
+        return pc;
+    }, [appointmentId]);
+
+    // ── main effect ───────────────────────────────────────────────────────────
     useEffect(() => {
         if (!appointmentId || !role) return;
         let mounted = true;
 
-        // local camera
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-            .then(s => {
-                if (!mounted) { s.getTracks().forEach(t => t.stop()); return; }
-                setStream(s);
-                if (localVideoRef.current) localVideoRef.current.srcObject = s;
-            })
-            .catch(() => setMediaError('Camera/Microphone access denied or unavailable.'));
-
-        // init session in DB (idempotent), then connect socket
-        fetch(`${TELE_URL}/session/init`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                appointmentId,
-                patientId: role === 'patient' ? user?.id : undefined,
-                doctorId:  role === 'doctor'  ? user?.id : undefined,
-                date, time
-            })
-        }).catch(() => {}); // best-effort; socket handles errors
-
         const socket = io(TELE_URL, { transports: ['websocket'] });
         socketRef.current = socket;
 
-        socket.on('connect', () => {
-            socket.emit('join-session', { appointmentId, role, name });
+        // ── WebRTC signal handlers ────────────────────────────────────────────
+        socket.on('webrtc-offer', async ({ offer }) => {
+            if (!mounted || !pcRef.current) return;
+            const pc = pcRef.current;
+            const collision = makingOffer.current || pc.signalingState !== 'stable';
+            const imPolite  = role === 'doctor'; // doctor is polite peer
+            if (collision && !imPolite) return;
+            try {
+                await pc.setRemoteDescription(new RTCSessionDescription(offer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                socket.emit('webrtc-answer', { appointmentId, answer: pc.localDescription });
+            } catch (err) { console.error('Answer error:', err); }
         });
 
+        socket.on('webrtc-answer', async ({ answer }) => {
+            if (!mounted || !pcRef.current) return;
+            try {
+                if (pcRef.current.signalingState !== 'have-local-offer') return;
+                await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+            } catch (err) { console.error('Set answer error:', err); }
+        });
+
+        socket.on('webrtc-ice-candidate', async ({ candidate }) => {
+            if (!mounted || !pcRef.current) return;
+            try { await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate)); } catch (_) {}
+        });
+
+        // ── session handlers ──────────────────────────────────────────────────
         socket.on('session-joined', ({ status, remainingMs: rem, running, slotStart: ss, chat }) => {
             if (!mounted) return;
             setPhase(status === 'active' ? 'active' : 'waiting');
@@ -127,16 +176,30 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             setMessages(chat || []);
         });
 
-        socket.on('session-error', ({ code, slotStart: ss, completedAt }) => {
+        // backend sends `message` field (not `code`) — fixed here
+        socket.on('session-error', ({ message, slotStart: ss }) => {
             if (!mounted) return;
-            if (code === 'too_early') { setPhase('too_early'); setSlotStart(ss ? new Date(ss) : null); }
-            else if (code === 'missed')    setPhase('missed');
-            else if (code === 'completed') setPhase('completed');
-            else                           setPhase('error');
+            if (message === 'too_early')  { setPhase('too_early'); setSlotStart(ss ? new Date(ss) : null); }
+            else if (message === 'too_late') setPhase('missed');
+            else if (message === 'completed') setPhase('completed');
+            else setPhase('error');
         });
 
-        socket.on('participant-joined', () => { if (mounted) setOtherPresent(true); });
-        socket.on('participant-left',   () => { if (mounted) setOtherPresent(false); });
+        socket.on('participant-joined', () => {
+            if (!mounted) return;
+            setOtherPresent(true);
+            // whoever was already in room triggers the offer
+            if (pcRef.current?.signalingState === 'stable') {
+                pcRef.current.onnegotiationneeded?.();
+            }
+        });
+
+        socket.on('participant-left', () => {
+            if (!mounted) return;
+            setOtherPresent(false);
+            setRemoteStream(false);
+            if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+        });
 
         socket.on('timer-sync', ({ remainingMs: rem, running, status }) => {
             if (!mounted) return;
@@ -152,32 +215,65 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             setTimerRunning(false);
             setRemainingMs(0);
             setPhase('completed');
-            stopMedia();
+            localStreamRef.current?.getTracks().forEach(t => t.stop());
         });
 
         socket.on('receive-message', msg => {
             if (mounted) setMessages(prev => [...prev, msg]);
         });
 
+        // ── get media then join ───────────────────────────────────────────────
+        const joinSession = () => {
+            fetch(`${TELE_URL}/session/init`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    appointmentId,
+                    patientId: role === 'patient' ? user?.id : undefined,
+                    doctorId:  role === 'doctor'  ? user?.id : undefined,
+                    date, time
+                })
+            }).catch(() => {}).finally(() => {
+                socket.emit('join-session', { appointmentId, role, name });
+            });
+        };
+
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                if (!mounted) { stream.getTracks().forEach(t => t.stop()); return; }
+                localStreamRef.current = stream;
+                if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+                createPC(socket);
+                joinSession();
+            })
+            .catch(() => {
+                setMediaError('Camera/Microphone access denied.');
+                createPC(socket);
+                joinSession();
+            });
+
         return () => {
             mounted = false;
             clearInterval(tickRef.current);
             socket.disconnect();
-            stopMedia();
+            pcRef.current?.close();
+            pcRef.current = null;
+            localStreamRef.current?.getTracks().forEach(t => t.stop());
         };
-    }, [appointmentId, role, name, date, time, stopMedia, user?.id]);
+    }, [appointmentId, role, name, date, time, createPC, user?.id]);
 
     // ── controls ──────────────────────────────────────────────────────────────
     const toggleVideo = () => {
-        stream?.getVideoTracks().forEach(t => { t.enabled = !t.enabled; });
+        localStreamRef.current?.getVideoTracks().forEach(t => { t.enabled = !t.enabled; });
         setHasVideo(v => !v);
     };
     const toggleAudio = () => {
-        stream?.getAudioTracks().forEach(t => { t.enabled = !t.enabled; });
+        localStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = !t.enabled; });
         setHasAudio(a => !a);
     };
     const handleEndCall = () => {
-        stopMedia();
+        localStreamRef.current?.getTracks().forEach(t => t.stop());
+        pcRef.current?.close();
         socketRef.current?.disconnect();
         onEndCall?.();
     };
@@ -185,10 +281,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
         e.preventDefault();
         if (!newMessage.trim() || !socketRef.current) return;
         socketRef.current.emit('send-message', {
-            appointmentId,
-            text: newMessage.trim(),
-            senderRole: role,
-            senderName: name,
+            appointmentId, text: newMessage.trim(), senderRole: role, senderName: name,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         });
         setNewMessage('');
@@ -201,56 +294,91 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     );
     if (phase === 'too_early') {
         const t = slotStart?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) ?? '';
+        const d = slotStart?.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) ?? '';
         return (
-            <StatusScreen icon={<Clock className="w-10 h-10 text-amber-400" />}
-                title="Too Early"
-                subtitle={`Consultation starts at ${t}. The Join button activates 5 minutes before.`} />
+            <StatusScreen icon={<Clock className="w-12 h-12 text-amber-400" />}
+                title="Consultation Not Started Yet"
+                subtitle={`Your appointment is scheduled for ${d} at ${t}.`}>
+                <div className="mt-2 px-5 py-3 bg-amber-900/30 border border-amber-700/40 rounded-xl text-amber-300 text-sm font-medium">
+                    The Join button activates 5 minutes before your slot.
+                </div>
+            </StatusScreen>
         );
     }
     if (phase === 'missed') return (
         <StatusScreen icon={<Clock className="w-10 h-10 text-red-400" />}
-            title="Session Missed"
-            subtitle="The appointment slot passed without anyone joining." />
+            title="Session Missed" subtitle="The appointment slot passed without anyone joining." onClose={onEndCall} />
     );
     if (phase === 'completed') return (
         <StatusScreen icon={<PhoneOff className="w-10 h-10 text-slate-400" />}
-            title="Call Ended"
-            subtitle="This consultation has been completed."
-            onClose={onEndCall} />
+            title="Call Ended" subtitle="This consultation has been completed." onClose={onEndCall}>
+            {messages.length > 0 && (
+                <div className="w-full max-w-sm mt-2 bg-gray-800 rounded-xl overflow-hidden">
+                    <p className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-700">Session Chat History</p>
+                    <div className="max-h-48 overflow-y-auto p-3 space-y-2">
+                        {messages.map((msg, i) => (
+                            <div key={i} className={`flex flex-col ${msg.senderRole === role ? 'items-end' : 'items-start'}`}>
+                                <span className="text-[10px] text-gray-500 mb-0.5">{msg.senderName} · {msg.time}</span>
+                                <div className={`px-3 py-1.5 rounded-lg text-xs max-w-[90%] break-words
+                                    ${msg.senderRole === role ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-200'}`}>
+                                    {msg.text}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </StatusScreen>
     );
     if (phase === 'error') return (
         <StatusScreen icon={<PhoneOff className="w-10 h-10 text-red-400" />}
-            title="Session Error"
-            subtitle="Could not connect to this session."
-            onClose={onEndCall} />
+            title="Session Error" subtitle="Could not connect to this session." onClose={onEndCall} />
     );
 
-    // ── main call UI ──────────────────────────────────────────────────────────
-    const bothIn = otherPresent || phase === 'active';
+    // ── timer bar color ───────────────────────────────────────────────────────
+    const timerBarClass = !timerRunning
+        ? 'bg-gray-800'
+        : remainingMs < 60000   ? 'bg-red-700 animate-pulse'
+        : remainingMs < 300000  ? 'bg-orange-700'
+        : 'bg-indigo-700';
 
+    const timerTextClass = remainingMs < 60000
+        ? 'text-red-200 animate-pulse'
+        : remainingMs < 300000
+        ? 'text-orange-200'
+        : 'text-white';
+
+    // ── main call UI ──────────────────────────────────────────────────────────
     return (
         <div className="flex flex-col w-full rounded-2xl overflow-hidden shadow-2xl bg-gray-900">
 
             {/* Timer bar */}
-            <div className={`flex items-center justify-between px-6 py-3 ${timerRunning ? 'bg-indigo-700' : 'bg-gray-800'}`}>
+            <div className={`flex items-center justify-between px-6 py-3 transition-colors duration-1000 ${timerBarClass}`}>
                 <div className="flex items-center gap-2 text-white font-bold text-sm">
                     <Clock className="w-4 h-4 shrink-0" />
                     {timerRunning ? (
                         <span>
                             Time Remaining:&nbsp;
-                            <span className={`font-mono text-lg ${remainingMs < 120000 ? 'text-red-300' : 'text-white'}`}>
-                                {fmt(remainingMs)}
-                            </span>
+                            <span className={`font-mono text-lg font-black ${timerTextClass}`}>{fmt(remainingMs)}</span>
+                            {remainingMs < 300000 && remainingMs > 0 && (
+                                <span className="ml-2 text-xs font-normal opacity-80">
+                                    {remainingMs < 60000 ? '⚠ Less than 1 minute!' : '⚠ 5 minutes remaining'}
+                                </span>
+                            )}
                         </span>
                     ) : (
-                        <span className="text-gray-300">
-                            Waiting for {role === 'patient' ? 'doctor' : 'patient'} to join…
-                        </span>
+                        <span className="text-gray-300">Waiting for {role === 'patient' ? 'doctor' : 'patient'} to join…</span>
                     )}
                 </div>
-                <div className="flex items-center gap-1.5 text-gray-300 text-xs">
-                    <Users className="w-4 h-4" />
-                    {bothIn ? '2 participants' : '1 participant'}
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 text-gray-300 text-xs">
+                        <Users className="w-4 h-4" />
+                        {otherPresent || phase === 'active' ? '2 participants' : '1 participant'}
+                    </div>
+                    <button onClick={() => setShowChat(c => !c)}
+                        className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition text-white">
+                        <MessageSquare className="w-4 h-4" />
+                    </button>
                 </div>
             </div>
 
@@ -264,13 +392,21 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                         </div>
                     ) : (
                         <>
+                            {/* Remote video */}
+                            <video ref={remoteVideoRef} autoPlay playsInline
+                                className={`absolute inset-0 w-full h-full object-cover ${remoteStream ? '' : 'hidden'}`} />
+
                             {/* Remote placeholder */}
-                            <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-                                <div className="text-center text-gray-500">
-                                    <Video className="w-14 h-14 mx-auto mb-3 opacity-20" />
-                                    <p className="text-sm">{bothIn ? 'Remote video stream' : 'Waiting for other participant…'}</p>
+                            {!remoteStream && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+                                    <div className="text-center text-gray-500">
+                                        <Video className="w-14 h-14 mx-auto mb-3 opacity-20" />
+                                        <p className="text-sm">
+                                            {otherPresent ? 'Establishing video connection…' : `Waiting for ${role === 'patient' ? 'doctor' : 'patient'} to join…`}
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Local PiP */}
                             <div className="absolute bottom-16 right-4 w-44 h-32 bg-gray-950 rounded-xl overflow-hidden border-2 border-gray-700 shadow-xl z-10">
@@ -302,40 +438,41 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                     )}
                 </div>
 
-                {/* Chat */}
-                <div className="w-72 bg-gray-800 border-l border-gray-700 flex flex-col">
-                    <div className="px-4 py-3 bg-gray-900 text-white text-sm font-semibold border-b border-gray-700">
-                        Session Chat
-                    </div>
-                    <div className="flex-1 p-3 overflow-y-auto space-y-2">
-                        {messages.map((msg, i) => {
-                            const isMe = msg.senderRole === role;
-                            return (
-                                <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                    <span className="text-[10px] text-gray-400 mb-0.5">{msg.senderName} · {msg.time}</span>
-                                    <div className={`px-3 py-2 rounded-xl text-sm max-w-[90%] break-words
-                                        ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-100 rounded-bl-none'}`}>
-                                        {msg.text}
+                {/* Chat panel */}
+                {showChat && (
+                    <div className="w-72 bg-gray-800 border-l border-gray-700 flex flex-col">
+                        <div className="px-4 py-3 bg-gray-900 text-white text-sm font-semibold border-b border-gray-700">
+                            Session Chat
+                        </div>
+                        <div className="flex-1 p-3 overflow-y-auto space-y-2">
+                            {messages.length === 0 && (
+                                <p className="text-xs text-gray-500 text-center mt-4">No messages yet</p>
+                            )}
+                            {messages.map((msg, i) => {
+                                const isMe = msg.senderRole === role;
+                                return (
+                                    <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                        <span className="text-[10px] text-gray-400 mb-0.5">{msg.senderName} · {msg.time}</span>
+                                        <div className={`px-3 py-2 rounded-xl text-sm max-w-[90%] break-words
+                                            ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-100 rounded-bl-none'}`}>
+                                            {msg.text}
+                                        </div>
                                     </div>
-                                </div>
-                            );
-                        })}
-                        <div ref={chatEndRef} />
+                                );
+                            })}
+                            <div ref={chatEndRef} />
+                        </div>
+                        <form onSubmit={sendMessage} className="p-3 border-t border-gray-700 bg-gray-900 flex gap-2">
+                            <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)}
+                                placeholder="Type message…"
+                                className="flex-1 px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none text-sm placeholder-gray-500" />
+                            <button type="submit"
+                                className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                                Send
+                            </button>
+                        </form>
                     </div>
-                    <form onSubmit={sendMessage} className="p-3 border-t border-gray-700 bg-gray-900 flex gap-2">
-                        <input
-                            type="text"
-                            value={newMessage}
-                            onChange={e => setNewMessage(e.target.value)}
-                            placeholder="Type message…"
-                            className="flex-1 px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none text-sm placeholder-gray-500"
-                        />
-                        <button type="submit"
-                            className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
-                            Send
-                        </button>
-                    </form>
-                </div>
+                )}
             </div>
         </div>
     );

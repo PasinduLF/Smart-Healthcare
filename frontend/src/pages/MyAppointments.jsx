@@ -108,6 +108,11 @@ export default function MyAppointments({ setActiveCall }) {
     const [loading, setLoading] = useState(true);
     const [rescheduleData, setRescheduleData] = useState({ id: null, date: '', time: '' });
     const [doctorAppointments, setDoctorAppointments] = useState([]);
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        const t = setInterval(() => setTick(n => n + 1), 30000); // re-evaluate join state every 30s
+        return () => clearInterval(t);
+    }, []);
 
     const fetchAll = useCallback(async () => {
         if (!user?.id || !token) return;
@@ -309,7 +314,7 @@ export default function MyAppointments({ setActiveCall }) {
                             <div className="flex gap-2">
                                 {rescheduleData.id !== appt._id && (
                                     <>
-                                        {appt.status === 'accepted' && (() => {
+                                        {appt.status === 'accepted' && appt.paymentStatus === 'paid' && (() => {
                                             const { canJoin, label } = getJoinState(appt.date, appt.time);
                                             return (
                                                 <button

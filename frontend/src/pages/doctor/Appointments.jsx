@@ -35,6 +35,11 @@ export default function DoctorAppointments({ setActiveCall }) {
     const [appointments, setAppointments] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        const t = setInterval(() => setTick(n => n + 1), 30000); // re-evaluate join state every 30s
+        return () => clearInterval(t);
+    }, []);
 
     useEffect(() => {
         const fetchAppointments = async () => {
