@@ -4,6 +4,32 @@ import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config/api';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+// ── slot-window helpers ───────────────────────────────────────────────────────
+function parseSlotStart(dateStr, timeStr) {
+    if (!dateStr || !timeStr) return null;
+    const parts = timeStr.trim().split(' ');
+    if (parts.length < 2) return null;
+    let [h, m] = parts[0].split(':').map(Number);
+    const mer = parts[1].toUpperCase();
+    if (mer === 'PM' && h !== 12) h += 12;
+    if (mer === 'AM' && h === 12) h  =  0;
+    const d = new Date(`${dateStr}T00:00:00`);
+    d.setHours(h, m, 0, 0);
+    return d;
+}
+
+function getJoinState(dateStr, timeStr) {
+    const slotStart = parseSlotStart(dateStr, timeStr);
+    if (!slotStart) return { canJoin: true, label: 'Join Call' };
+    const now       = Date.now();
+    const joinFrom  = slotStart.getTime() - 5 * 60 * 1000;
+    const joinUntil = slotStart.getTime() + 30 * 60 * 1000;
+    const label12   = slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (now < joinFrom)  return { canJoin: false, label: `Starts at ${label12}` };
+    if (now > joinUntil) return { canJoin: false, label: 'Slot Ended' };
+    return { canJoin: true, label: 'Join Call' };
+}
+
 const dayKeyFromDate = (dateStr) => {
     if (!dateStr) return null;
     const date = new Date(`${dateStr}T00:00:00`);
@@ -147,8 +173,8 @@ export default function MyAppointments({ setActiveCall }) {
         }
     };
 
-    const startTelemedicine = (apptId) => {
-        if (setActiveCall) setActiveCall(`channel-${apptId}`);
+    const startTelemedicine = (appt) => {
+        if (setActiveCall) setActiveCall({ id: appt._id, date: appt.date, time: appt.time });
         navigate('/patient/telemedicine');
     };
 
@@ -283,9 +309,22 @@ export default function MyAppointments({ setActiveCall }) {
                             <div className="flex gap-2">
                                 {rescheduleData.id !== appt._id && (
                                     <>
-                                        {appt.status === 'accepted' && (
-                                            <button onClick={() => startTelemedicine(appt._id)} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition text-sm font-bold border border-indigo-100">Join Call</button>
-                                        )}
+                                        {appt.status === 'accepted' && (() => {
+                                            const { canJoin, label } = getJoinState(appt.date, appt.time);
+                                            return (
+                                                <button
+                                                    onClick={() => canJoin && startTelemedicine(appt)}
+                                                    disabled={!canJoin}
+                                                    className={`px-4 py-2 rounded-lg transition text-sm font-bold border ${
+                                                        canJoin
+                                                            ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border-indigo-100'
+                                                            : 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed'
+                                                    }`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            );
+                                        })()}
                                         {appt.status !== 'cancelled' && (
                                             <>
                                                 <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition text-sm font-bold border border-slate-100">Reschedule</button>

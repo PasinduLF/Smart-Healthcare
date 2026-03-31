@@ -4,6 +4,31 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Activity, X } from 'lucide-react';
 
+function parseSlotStart(dateStr, timeStr) {
+    if (!dateStr || !timeStr) return null;
+    const parts = timeStr.trim().split(' ');
+    if (parts.length < 2) return null;
+    let [h, m] = parts[0].split(':').map(Number);
+    const mer = parts[1].toUpperCase();
+    if (mer === 'PM' && h !== 12) h += 12;
+    if (mer === 'AM' && h === 12) h  =  0;
+    const d = new Date(`${dateStr}T00:00:00`);
+    d.setHours(h, m, 0, 0);
+    return d;
+}
+
+function getJoinState(dateStr, timeStr) {
+    const slotStart = parseSlotStart(dateStr, timeStr);
+    if (!slotStart) return { canJoin: true, label: 'Start Consultation' };
+    const now       = Date.now();
+    const joinFrom  = slotStart.getTime() - 5 * 60 * 1000;
+    const joinUntil = slotStart.getTime() + 30 * 60 * 1000;
+    const label12   = slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (now < joinFrom)  return { canJoin: false, label: `Starts at ${label12}` };
+    if (now > joinUntil) return { canJoin: false, label: 'Slot Ended' };
+    return { canJoin: true, label: 'Start Consultation' };
+}
+
 export default function DoctorAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
     const navigate = useNavigate();
@@ -64,8 +89,8 @@ export default function DoctorAppointments({ setActiveCall }) {
         }
     };
 
-    const startTelemedicine = (apptId) => {
-        setActiveCall(`channel-${apptId}`);
+    const startTelemedicine = (appt) => {
+        setActiveCall({ id: appt._id, date: appt.date, time: appt.time });
         navigate('/doctor/telemedicine');
     };
 
@@ -113,9 +138,22 @@ export default function DoctorAppointments({ setActiveCall }) {
                                         <button onClick={() => handleReject(appt._id)} className="px-5 py-2.5 bg-red-50 text-red-600 text-xs font-bold rounded-xl hover:bg-red-100 border border-red-100">Reject</button>
                                     </>
                                 )}
-                                {appt.status === 'accepted' && (
-                                    <button onClick={() => startTelemedicine(appt._id)} className="px-6 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100">Start Consultation</button>
-                                )}
+                                {appt.status === 'accepted' && (() => {
+                                    const { canJoin, label } = getJoinState(appt.date, appt.time);
+                                    return (
+                                        <button
+                                            onClick={() => canJoin && startTelemedicine(appt)}
+                                            disabled={!canJoin}
+                                            className={`px-6 py-2.5 text-xs font-bold rounded-xl transition ${
+                                                canJoin
+                                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100'
+                                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })()}
                                 <button onClick={() => viewPatientProfile(appt.patientId)} className="px-5 py-2.5 bg-slate-50 text-slate-600 text-xs font-bold rounded-xl hover:bg-white border border-slate-100 shadow-sm">Patient Details</button>
                             </div>
                         </div>
