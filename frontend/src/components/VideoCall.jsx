@@ -176,12 +176,13 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             setMessages(chat || []);
         });
 
-        // backend sends `message` field (not `code`) — fixed here
-        socket.on('session-error', ({ message, slotStart: ss }) => {
+        // backend sends `message` field — fixed to match frontend listener
+        socket.on('session-error', ({ message, code, slotStart: ss }) => {
             if (!mounted) return;
-            if (message === 'too_early')  { setPhase('too_early'); setSlotStart(ss ? new Date(ss) : null); }
-            else if (message === 'too_late') setPhase('missed');
-            else if (message === 'completed') setPhase('completed');
+            const err = message || code;
+            if (err === 'too_early')  { setPhase('too_early'); setSlotStart(ss ? new Date(ss) : null); }
+            else if (err === 'too_late' || err === 'missed') setPhase('missed');
+            else if (err === 'completed') setPhase('completed');
             else setPhase('error');
         });
 
@@ -233,9 +234,9 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                     doctorId:  role === 'doctor'  ? user?.id : undefined,
                     date, time
                 })
-            }).catch(() => {}).finally(() => {
-                socket.emit('join-session', { appointmentId, role, name });
-            });
+            })
+            .then(() => socket.emit('join-session', { appointmentId, role, name }))
+            .catch(() => socket.emit('join-session', { appointmentId, role, name }));
         };
 
         navigator.mediaDevices.getUserMedia({ video: true, audio: true })
