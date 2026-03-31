@@ -52,13 +52,20 @@ const Session = mongoose.model('TeleSession', sessionSchema);
 
 /** "2:00 PM" + "2025-03-28" → Date */
 function parseSlotStart(dateStr, timeStr) {
-    const [timePart, meridiem] = timeStr.trim().split(' ');
-    let [h, m] = timePart.split(':').map(Number);
-    if (meridiem.toUpperCase() === 'PM' && h !== 12) h += 12;
-    if (meridiem.toUpperCase() === 'AM' && h === 12) h  =  0;
-    const d = new Date(`${dateStr}T00:00:00`);
-    d.setHours(h, m, 0, 0);
-    return d;
+    const trimmed = timeStr.trim();
+    let h, m;
+    if (trimmed.includes('AM') || trimmed.includes('PM')) {
+        const [timePart, meridiem] = trimmed.split(' ');
+        [h, m] = timePart.split(':').map(Number);
+        if (meridiem.toUpperCase() === 'PM' && h !== 12) h += 12;
+        if (meridiem.toUpperCase() === 'AM' && h === 12) h  =  0;
+    } else {
+        [h, m] = trimmed.split(':').map(Number);
+    }
+    // Times are stored in Sri Lanka time (UTC+5:30) — convert to UTC
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const utcMs = Date.UTC(year, month - 1, day, h, m, 0, 0) - (5.5 * 60 * 60 * 1000);
+    return new Date(utcMs);
 }
 
 function computeRemainingMs(session) {
@@ -152,31 +159,28 @@ io.on('connection', socket => {
         if (!appointmentId || !role) return;
 
         const s = await Session.findOne({ appointmentId });
-        if (!s) return socket.emit('session-error', { code: 'not_found' });
+        if (!s) return socket.emit('session-error', { code: 'not_found', message: 'not_found' });
 
         const now      = Date.now();
         const joinFrom  = s.slotStart.getTime() - EARLY_JOIN_MS;
         const joinUntil = s.slotEnd.getTime();
 
-        // ── time-window checks ────────────────────────────────────────────────
         if (now < joinFrom) {
             return socket.emit('session-error', {
-                code: 'too_early',
+                code: 'too_early', message: 'too_early',
                 slotStart: s.slotStart
             });
         }
 
         if (now > joinUntil) {
-            // After slot end: only allow rejoin if session was already active/completed
             if (s.status === 'waiting') {
                 s.status = 'missed';
                 await s.save();
-                return socket.emit('session-error', { code: 'missed' });
+                return socket.emit('session-error', { code: 'missed', message: 'too_late' });
             }
             if (s.status === 'completed') {
-                return socket.emit('session-error', { code: 'completed', completedAt: s.completedAt });
+                return socket.emit('session-error', { code: 'completed', message: 'completed', completedAt: s.completedAt });
             }
-            // status === 'active' → allow rejoin even after slot end (timer still running)
         }
 
         // ── join room ─────────────────────────────────────────────────────────
