@@ -55,18 +55,17 @@ function parseSlotStart(dateStr, timeStr) {
     const trimmed = timeStr.trim();
     let h, m;
     if (trimmed.includes('AM') || trimmed.includes('PM')) {
-        // "2:00 PM" format
         const [timePart, meridiem] = trimmed.split(' ');
         [h, m] = timePart.split(':').map(Number);
         if (meridiem.toUpperCase() === 'PM' && h !== 12) h += 12;
         if (meridiem.toUpperCase() === 'AM' && h === 12) h  =  0;
     } else {
-        // "14:00" 24hr format
         [h, m] = trimmed.split(':').map(Number);
     }
-    const d = new Date(`${dateStr}T00:00:00`);
-    d.setHours(h, m, 0, 0);
-    return d;
+    // Times are stored in Sri Lanka time (UTC+5:30) — convert to UTC
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const utcMs = Date.UTC(year, month - 1, day, h, m, 0, 0) - (5.5 * 60 * 60 * 1000);
+    return new Date(utcMs);
 }
 
 function computeRemainingMs(session) {
