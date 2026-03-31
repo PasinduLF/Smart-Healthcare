@@ -183,7 +183,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             if (err === 'too_early')  { setPhase('too_early'); setSlotStart(ss ? new Date(ss) : null); }
             else if (err === 'too_late' || err === 'missed') setPhase('missed');
             else if (err === 'completed') setPhase('completed');
-            else setPhase('error');
+            else { console.error('session-error:', message, code); setPhase('error'); }
         });
 
         socket.on('participant-joined', () => {
