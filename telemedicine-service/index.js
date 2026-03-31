@@ -50,7 +50,7 @@ const Session = mongoose.model('TeleSession', sessionSchema);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** "2:00 PM" + "2025-03-28" → Date */
+/** "2:00 PM" + "2025-03-28" → Date (treated as UTC wall-clock, no offset) */
 function parseSlotStart(dateStr, timeStr) {
     const trimmed = timeStr.trim();
     let h, m;
@@ -62,10 +62,9 @@ function parseSlotStart(dateStr, timeStr) {
     } else {
         [h, m] = trimmed.split(':').map(Number);
     }
-    // Times are stored in Sri Lanka time (UTC+5:30) — convert to UTC
+    // Store as UTC using the date+time as-is (no timezone offset applied)
     const [year, month, day] = dateStr.split('-').map(Number);
-    const utcMs = Date.UTC(year, month - 1, day, h, m, 0, 0) - (5.5 * 60 * 60 * 1000);
-    return new Date(utcMs);
+    return new Date(Date.UTC(year, month - 1, day, h, m, 0, 0));
 }
 
 function computeRemainingMs(session) {
