@@ -4,36 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config/api';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-// ── slot-window helpers ───────────────────────────────────────────────────────
-function parseSlotStart(dateStr, timeStr) {
-    if (!dateStr || !timeStr) return null;
-    const trimmed = timeStr.trim();
-    const parts = trimmed.split(' ');
-    let h, m;
-    if (parts.length >= 2) {
-        [h, m] = parts[0].split(':').map(Number);
-        const mer = parts[1].toUpperCase();
-        if (mer === 'PM' && h !== 12) h += 12;
-        if (mer === 'AM' && h === 12) h  =  0;
-    } else {
-        [h, m] = trimmed.split(':').map(Number);
-    }
-    // Use UTC to match the backend — no local timezone offset
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(Date.UTC(year, month - 1, day, h, m, 0, 0));
-}
-
-function getJoinState(dateStr, timeStr) {
-    const slotStart = parseSlotStart(dateStr, timeStr);
-    if (!slotStart) return { canJoin: true, label: 'Join Call' };
-    const now       = Date.now();
-    const joinFrom  = slotStart.getTime() - 5 * 60 * 1000;
-    const joinUntil = slotStart.getTime() + 30 * 60 * 1000;
-    const label12   = slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (now < joinFrom)  return { canJoin: false, label: `Starts at ${label12}` };
-    if (now > joinUntil) return { canJoin: false, label: 'Slot Ended' };
-    return { canJoin: true, label: 'Join Call' };
-}
+const getJoinState = () => ({ canJoin: true, label: 'Join Call' });
 
 const dayKeyFromDate = (dateStr) => {
     if (!dateStr) return null;
@@ -113,11 +84,6 @@ export default function MyAppointments({ setActiveCall }) {
     const [loading, setLoading] = useState(true);
     const [rescheduleData, setRescheduleData] = useState({ id: null, date: '', time: '' });
     const [doctorAppointments, setDoctorAppointments] = useState([]);
-    const [, setTick] = useState(0);
-    useEffect(() => {
-        const t = setInterval(() => setTick(n => n + 1), 30000); // re-evaluate join state every 30s
-        return () => clearInterval(t);
-    }, []);
 
     const fetchAll = useCallback(async () => {
         if (!user?.id || !token) return;
@@ -320,7 +286,7 @@ export default function MyAppointments({ setActiveCall }) {
                                 {rescheduleData.id !== appt._id && (
                                     <>
                                         {appt.status === 'accepted' && appt.paymentStatus === 'paid' && (() => {
-                                            const { canJoin, label } = getJoinState(appt.date, appt.time);
+                                            const { canJoin, label } = getJoinState();
                                             return (
                                                 <button
                                                     onClick={() => canJoin && startTelemedicine(appt)}

@@ -93,16 +93,18 @@ app.post('/session/init', async (req, res) => {
     if (!appointmentId || !date || !time)
         return res.status(400).json({ error: 'appointmentId, date and time are required' });
     try {
-        let s = await Session.findOne({ appointmentId });
-        if (!s) {
-            const slotStart = parseSlotStart(date, time);
-            s = await Session.create({
+        const slotStart = parseSlotStart(date, time);
+        const s = await Session.findOneAndUpdate(
+            { appointmentId },
+            { $setOnInsert: {
                 appointmentId, patientId, doctorId,
                 slotStart,
                 slotEnd: new Date(slotStart.getTime() + SLOT_DURATION_MS),
-                remainingMs: SLOT_DURATION_MS
-            });
-        }
+                remainingMs: SLOT_DURATION_MS,
+                status: 'waiting'
+            }},
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
         res.json(toClient(s));
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -160,26 +162,9 @@ io.on('connection', socket => {
         const s = await Session.findOne({ appointmentId });
         if (!s) return socket.emit('session-error', { code: 'not_found', message: 'not_found' });
 
-        const now      = Date.now();
-        const joinFrom  = s.slotStart.getTime() - EARLY_JOIN_MS;
-        const joinUntil = s.slotEnd.getTime();
-
-        if (now < joinFrom) {
-            return socket.emit('session-error', {
-                code: 'too_early', message: 'too_early',
-                slotStart: s.slotStart
-            });
-        }
-
-        if (now > joinUntil) {
-            if (s.status === 'waiting') {
-                s.status = 'missed';
-                await s.save();
-                return socket.emit('session-error', { code: 'missed', message: 'too_late' });
-            }
-            if (s.status === 'completed') {
-                return socket.emit('session-error', { code: 'completed', message: 'completed', completedAt: s.completedAt });
-            }
+        // No time validation — users can join anytime after payment
+        if (s.status === 'completed') {
+            return socket.emit('session-error', { code: 'completed', message: 'completed', completedAt: s.completedAt });
         }
 
         // ── join room ─────────────────────────────────────────────────────────
