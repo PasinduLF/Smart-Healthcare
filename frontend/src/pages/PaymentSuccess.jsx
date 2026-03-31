@@ -1,42 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL } from '../config/api';
+import React, { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function PaymentSuccess() {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const { token } = useAuth();
-    const [statusMessage, setStatusMessage] = useState('Finalizing payment...');
 
     useEffect(() => {
-        const appointmentId = searchParams.get('appointmentId');
-        const orderId = searchParams.get('orderId');
-
-        const finalizePayment = async () => {
-            if (!appointmentId) {
-                setStatusMessage('Payment confirmed. Updating appointments...');
-                return;
-            }
-            try {
-                await axios.put(`${API_BASE_URL}/api/appointments/payment/${appointmentId}`, {}, {
-                    headers: token ? { Authorization: `Bearer ${token}` } : undefined
-                });
-                setStatusMessage('Payment confirmed. Updating appointments...');
-            } catch (err) {
-                console.error('Failed to update payment status', err);
-                setStatusMessage(`Payment recorded. Please refresh your appointments. ${orderId ? `Order ${orderId}` : ''}`.trim());
-            }
-        };
-
-        finalizePayment();
-
         const timer = setTimeout(() => {
             navigate('/patient/appointments', { state: { refresh: true } });
         }, 1600);
         return () => clearTimeout(timer);
-    }, [navigate, orderId, searchParams, token]);
+    }, [navigate]);
 
     return (
         <div className="relative overflow-hidden rounded-2xl border bg-white p-10 text-center">
@@ -75,7 +48,7 @@ export default function PaymentSuccess() {
 
             <div className="relative z-10">
                 <h2 className="text-2xl font-bold text-slate-900">Payment Successful</h2>
-                <p className="mt-2 text-slate-500">{statusMessage}</p>
+                <p className="mt-2 text-slate-500">Your appointment is confirmed. Thank you!</p>
                 <div className="mt-6">
                     <Link
                         to="/patient/appointments"
