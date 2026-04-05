@@ -25,6 +25,7 @@ const transactionSchema = new mongoose.Schema({
     appointmentId: { type: String },
     patientId: { type: String },
     doctorId: { type: String },
+    doctorName: { type: String, default: '' },
     status: { type: String, default: 'success' },
     date: { type: Date, default: Date.now }
 });
@@ -35,6 +36,7 @@ const pendingPaymentSchema = new mongoose.Schema({
     appointmentId: { type: String, required: true },
     patientId: { type: String, required: true },
     doctorId: { type: String, required: true },
+    doctorName: { type: String, default: '' },
     date: { type: String, required: true },
     time: { type: String, required: true },
     amount: { type: Number, required: true },
@@ -43,6 +45,62 @@ const pendingPaymentSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 const PendingPayment = mongoose.model('PendingPayment', pendingPaymentSchema);
+
+const doctorServiceUrl = (process.env.DOCTOR_SERVICE_URL || 'http://doctor-service:3002').replace(/\/+$/, '');
+
+const normalizeDoctorName = (name = '') => String(name || '').trim();
+
+const withDoctorPrefix = (name = '') => {
+    const normalized = normalizeDoctorName(name);
+    if (!normalized) return '';
+    return /^dr\.?\s/i.test(normalized) ? normalized : `Dr. ${normalized}`;
+};
+
+const buildTransactionDescription = (orderId, doctorName) => {
+    const doctorLabel = withDoctorPrefix(doctorName);
+    return doctorLabel
+        ? `PayHere payment for ${orderId} (${doctorLabel})`
+        : `PayHere payment for ${orderId}`;
+};
+
+const appendDoctorToDescription = (description, doctorName, orderId) => {
+    const baseDescription = (typeof description === 'string' && description.trim())
+        ? description.trim()
+        : `PayHere payment for ${orderId || 'N/A'}`;
+
+    const doctorLabel = withDoctorPrefix(doctorName);
+    if (!doctorLabel) return baseDescription;
+
+    const lowerBase = baseDescription.toLowerCase();
+    const lowerDoctor = doctorLabel.toLowerCase();
+    const lowerName = normalizeDoctorName(doctorName).toLowerCase();
+
+    if (lowerBase.includes(lowerDoctor) || (lowerName && lowerBase.includes(lowerName))) {
+        return baseDescription;
+    }
+
+    return `${baseDescription} - ${doctorLabel}`;
+};
+
+const fetchDoctorNamesByIds = async (doctorIds) => {
+    const doctorNamesById = new Map();
+
+    await Promise.all(
+        doctorIds.map(async (doctorId) => {
+            try {
+                const response = await axios.get(`${doctorServiceUrl}/profile/${doctorId}`, { timeout: 4000 });
+                const doctorName = normalizeDoctorName(response?.data?.name);
+                if (doctorName) {
+                    doctorNamesById.set(doctorId, doctorName);
+                }
+            } catch (err) {
+                // Keep history query resilient even if doctor-service lookup fails.
+            }
+        })
+    );
+
+    return doctorNamesById;
+};
 
 const buildPayHereHash = (merchantId, orderId, amount, currency, merchantSecret) => {
     const secretHash = crypto.createHash('md5').update(merchantSecret || '').digest('hex').toUpperCase();
@@ -56,11 +114,13 @@ const syncAppointmentPayment = async (payment) => {
 };
 
 const recordSuccessfulTransaction = async (payment) => {
-    const description = `PayHere payment for ${payment.orderId}`;
+    const doctorName = normalizeDoctorName(payment.doctorName);
+    const description = buildTransactionDescription(payment.orderId, doctorName);
+
     await Transaction.findOneAndUpdate(
         { orderId: payment.orderId },
         {
-            $setOnInsert: {
+            $set: {
                 amount: Math.round(payment.amount * 100),
                 currency: payment.currency.toLowerCase(),
                 description,
@@ -68,6 +128,7 @@ const recordSuccessfulTransaction = async (payment) => {
                 appointmentId: payment.appointmentId,
                 patientId: payment.patientId,
                 doctorId: payment.doctorId,
+                doctorName,
                 status: 'success'
             }
         },
@@ -152,6 +213,7 @@ app.post('/payhere/checkout', async (req, res) => {
             appointmentId,
             patientId,
             doctorId,
+            doctorName: normalizeDoctorName(doctorName),
             date,
             time,
             amount: amountValue,
@@ -250,8 +312,104 @@ app.get('/transactions/patient/:patientId', async (req, res) => {
         if (!patientId) return res.status(400).json({ error: 'Missing patientId' });
 
         const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
-        const txs = await Transaction.find({ patientId }).sort({ date: -1 }).limit(limit);
-        res.json(txs);
+
+        const directTxs = await Transaction.find({ patientId }).sort({ date: -1 }).limit(limit).lean();
+
+        // Backward compatibility for historical data where Transaction rows were stored
+        // without patientId/orderId fields. We reconcile by matching successful pending orders.
+        const successfulPendingPayments = await PendingPayment.find({ patientId, status: 'success' })
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .lean();
+
+        if (successfulPendingPayments.length === 0) {
+            return res.json(directTxs);
+        }
+
+        const pendingByOrderId = new Map(
+            successfulPendingPayments
+                .filter((payment) => payment.orderId)
+                .map((payment) => [payment.orderId, payment])
+        );
+
+        const directOrderIds = new Set(
+            directTxs
+                .map((tx) => tx.orderId)
+                .filter(Boolean)
+        );
+
+        const missingOrderIds = successfulPendingPayments
+            .map((payment) => payment.orderId)
+            .filter((orderId) => orderId && !directOrderIds.has(orderId));
+
+        if (missingOrderIds.length === 0) {
+            return res.json(directTxs);
+        }
+
+        const legacyDescriptions = missingOrderIds.map((orderId) => `PayHere payment for ${orderId}`);
+
+        const legacyTxs = await Transaction.find({
+            $or: [
+                { orderId: { $in: missingOrderIds } },
+                { description: { $in: legacyDescriptions } }
+            ]
+        }).sort({ date: -1 }).lean();
+
+        const enrichedLegacyTxs = legacyTxs.map((tx) => {
+            let resolvedOrderId = tx.orderId;
+            if (!resolvedOrderId && typeof tx.description === 'string') {
+                const prefix = 'PayHere payment for ';
+                if (tx.description.startsWith(prefix)) {
+                    resolvedOrderId = tx.description.slice(prefix.length).split(' ')[0];
+                }
+            }
+
+            const paymentMeta = resolvedOrderId ? pendingByOrderId.get(resolvedOrderId) : null;
+
+            return {
+                ...tx,
+                orderId: resolvedOrderId || tx.orderId,
+                appointmentId: tx.appointmentId || paymentMeta?.appointmentId,
+                patientId: tx.patientId || paymentMeta?.patientId || patientId,
+                doctorId: tx.doctorId || paymentMeta?.doctorId,
+                doctorName: normalizeDoctorName(tx.doctorName || paymentMeta?.doctorName)
+            };
+        });
+
+        const mergedById = new Map();
+        [...directTxs, ...enrichedLegacyTxs].forEach((tx) => {
+            const key = String(tx._id || '') || `${tx.orderId || ''}:${tx.date || ''}:${tx.amount || ''}`;
+            if (!mergedById.has(key)) {
+                mergedById.set(key, tx);
+            }
+        });
+
+        const mergedTxs = Array.from(mergedById.values())
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, limit);
+
+        const doctorIdsToResolve = Array.from(
+            new Set(
+                mergedTxs
+                    .filter((tx) => tx.doctorId && !normalizeDoctorName(tx.doctorName))
+                    .map((tx) => tx.doctorId)
+            )
+        );
+
+        const doctorNamesById = doctorIdsToResolve.length > 0
+            ? await fetchDoctorNamesByIds(doctorIdsToResolve)
+            : new Map();
+
+        const displayTxs = mergedTxs.map((tx) => {
+            const resolvedDoctorName = normalizeDoctorName(tx.doctorName || doctorNamesById.get(tx.doctorId));
+            return {
+                ...tx,
+                doctorName: resolvedDoctorName,
+                description: appendDoctorToDescription(tx.description, resolvedDoctorName, tx.orderId)
+            };
+        });
+
+        res.json(displayTxs);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

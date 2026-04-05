@@ -10,6 +10,7 @@ export default function TransactionHistory() {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [notice, setNotice] = useState('');
 
     const formatAmount = (tx) => {
         const amount = Number(tx?.amount) || 0;
@@ -26,16 +27,37 @@ export default function TransactionHistory() {
         }
     };
 
+    const formatDescription = (tx) => {
+        const baseDescription = (typeof tx?.description === 'string' && tx.description.trim())
+            ? tx.description.trim()
+            : 'Appointment payment';
+
+        const doctorName = String(tx?.doctorName || '').trim();
+        if (!doctorName) return baseDescription;
+
+        const doctorLabel = /^dr\.?\s/i.test(doctorName) ? doctorName : `Dr. ${doctorName}`;
+        const lowerBase = baseDescription.toLowerCase();
+        const lowerDoctor = doctorLabel.toLowerCase();
+
+        if (lowerBase.includes(lowerDoctor) || lowerBase.includes(doctorName.toLowerCase())) {
+            return baseDescription;
+        }
+
+        return `${baseDescription} - ${doctorLabel}`;
+    };
+
     useEffect(() => {
         const fetchHistory = async () => {
             if (!user?.id || !token) {
                 setTransactions([]);
+                setNotice('');
                 setLoading(false);
                 return;
             }
 
             setLoading(true);
             setError('');
+            setNotice('');
 
             try {
                 const res = await axios.get(getPaymentServiceUrl(`/transactions/patient/${user.id}`), {
@@ -44,8 +66,26 @@ export default function TransactionHistory() {
 
                 setTransactions(Array.isArray(res.data) ? res.data : []);
             } catch (err) {
-                console.error('Failed to fetch patient transaction history', err);
-                setError('Unable to load transaction history right now.');
+                const status = err?.response?.status;
+
+                // Compatibility fallback for older payment-service deployments
+                // that do not yet expose /transactions/patient/:patientId.
+                if (status === 404) {
+                    try {
+                        const fallbackRes = await axios.get(getPaymentServiceUrl('/transactions'), {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+
+                        setTransactions(Array.isArray(fallbackRes.data) ? fallbackRes.data : []);
+                        setNotice('Showing available transaction records. Update payment service to enable user-specific filtering.');
+                    } catch (fallbackErr) {
+                        console.error('Fallback transaction history request failed', fallbackErr);
+                        setError('Unable to load transaction history right now.');
+                    }
+                } else {
+                    console.error('Failed to fetch patient transaction history', err);
+                    setError('Unable to load transaction history right now.');
+                }
             } finally {
                 setLoading(false);
             }
@@ -79,10 +119,15 @@ export default function TransactionHistory() {
                 ) : error ? (
                     <p className="text-sm text-rose-600">{error}</p>
                 ) : transactions.length === 0 ? (
-                    <p className="text-sm text-slate-500">No previous transactions found yet.</p>
+                    <div className="space-y-2">
+                        {notice && <p className="text-sm text-amber-700">{notice}</p>}
+                        <p className="text-sm text-slate-500">No previous transactions found yet.</p>
+                    </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-[760px] text-sm">
+                    <div className="space-y-3">
+                        {notice && <p className="text-sm text-amber-700">{notice}</p>}
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[760px] text-sm">
                             <thead>
                                 <tr className="text-left text-slate-500 border-b border-slate-200">
                                     <th className="py-3 pr-4 font-semibold">Date</th>
@@ -101,7 +146,7 @@ export default function TransactionHistory() {
                                     return (
                                         <tr key={tx._id} className="border-b border-slate-100 last:border-b-0">
                                             <td className="py-3 pr-4 text-slate-700">{new Date(tx.date).toLocaleString()}</td>
-                                            <td className="py-3 pr-4 text-slate-800">{tx.description || 'Appointment payment'}</td>
+                                            <td className="py-3 pr-4 text-slate-800">{formatDescription(tx)}</td>
                                             <td className="py-3 pr-4 text-slate-600">{tx.orderId || '-'}</td>
                                             <td className="py-3 pr-4 text-slate-600">{tx.appointmentId || '-'}</td>
                                             <td className="py-3 pr-4 text-right font-semibold text-slate-900">{formatAmount(tx)}</td>
@@ -118,7 +163,8 @@ export default function TransactionHistory() {
                                     );
                                 })}
                             </tbody>
-                        </table>
+                            </table>
+                        </div>
                     </div>
                 )}
             </div>
