@@ -181,6 +181,15 @@ export default function MyAppointments({ setActiveCall }) {
         return () => clearTimeout(retry);
     }, [fetchAll, location.state, navigate]);
 
+    // Auto-expand chat for a just-completed call
+    useEffect(() => {
+        const completedId = location.state?.completedCall;
+        if (!completedId) return;
+        navigate('/patient/appointments', { replace: true, state: {} });
+        loadChat(completedId).then(() => setExpandedChat(completedId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.state?.completedCall]);
+
     const handleCancelAppointment = async (apptId) => {
         try {
             await axios.put(getAppointmentServiceUrl(`/cancel/${apptId}`), {}, {
@@ -388,7 +397,7 @@ export default function MyAppointments({ setActiveCall }) {
                                                 </button>
                                             );
                                         })()}
-                                        {appt.status === 'accepted' && getJoinState(appt.date, appt.time).label === 'Slot Ended' && (
+                                        {appt.status === 'accepted' && (getJoinState(appt.date, appt.time).label === 'Slot Ended' || chatHistories[appt._id] !== undefined) && (
                                             <button
                                                 onClick={() => loadChat(appt._id)}
                                                 className="px-4 py-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition text-sm font-bold border border-slate-100 flex items-center gap-1.5"

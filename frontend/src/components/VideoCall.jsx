@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Users, MessageSquare } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Users, MessageSquare, Maximize, Minimize } from 'lucide-react';
 import { io } from 'socket.io-client';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { useAuth } from '../context/AuthContext';
 import { getTelemedicineServiceUrl } from '../config/api';
+import { useNavigate } from 'react-router-dom';
 
 const TELE_URL = getTelemedicineServiceUrl();
 
@@ -76,6 +77,7 @@ function StatusScreen({ icon, title, subtitle, onClose, children }) {
 
 export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     const { user, token } = useAuth();
+    const navigate = useNavigate();
     const role = user?.role;
     const name = user?.name || role;
 
@@ -87,6 +89,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     const localTracksRef = useRef({ audioTrack: null, videoTrack: null });
     const tickRef        = useRef(null);
     const chatEndRef     = useRef(null);
+    const containerRef   = useRef(null);
 
     // media
     const [hasVideo,     setHasVideo]     = useState(true);
@@ -107,6 +110,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     const [messages,    setMessages]    = useState([]);
     const [newMessage,  setNewMessage]  = useState('');
     const [showChat,    setShowChat]    = useState(true);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     // ── local countdown ───────────────────────────────────────────────────────
     useEffect(() => {
@@ -129,6 +133,22 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             videoTrack.play(localVideoRef.current);
         }
     });
+
+    // ── fullscreen ────────────────────────────────────────────────────────────
+    useEffect(() => {
+        const handler = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', handler);
+        return () => document.removeEventListener('fullscreenchange', handler);
+    }, []);
+
+    const toggleFullscreen = () => {
+        if (!containerRef.current) return;
+        if (!document.fullscreenElement) {
+            containerRef.current.requestFullscreen().catch(() => {});
+        } else {
+            document.exitFullscreen().catch(() => {});
+        }
+    };
 
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -221,26 +241,25 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             setPhase('completed');
 
             const { audioTrack, videoTrack } = localTracksRef.current;
-            if (audioTrack) {
-                audioTrack.stop();
-                audioTrack.close();
-            }
-            if (videoTrack) {
-                videoTrack.stop();
-                videoTrack.close();
-            }
+            if (audioTrack) { audioTrack.stop(); audioTrack.close(); }
+            if (videoTrack) { videoTrack.stop(); videoTrack.close(); }
             localTracksRef.current = { audioTrack: null, videoTrack: null };
 
             const client = agoraClientRef.current;
             agoraClientRef.current = null;
-            if (client) {
-                client.removeAllListeners();
-                void client.leave().catch(() => {});
-            }
+            if (client) { client.removeAllListeners(); void client.leave().catch(() => {}); }
 
             clearRemoteVideo();
             setRemoteStream(false);
             setOtherPresent(false);
+
+            // Navigate after a short delay so user sees the "Call Ended" screen briefly
+            setTimeout(() => {
+                if (!mounted) return;
+                onEndCall?.();
+                if (role === 'doctor') navigate('/doctor/appointments');
+                else navigate('/patient/appointments');
+            }, 2500);
         });
 
         socket.on('receive-message', msg => {
@@ -484,31 +503,25 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             console.error('Audio toggle failed:', err);
         }
     };
+    const navigateAway = () => {
+        onEndCall?.();
+        if (role === 'doctor') navigate('/doctor/appointments');
+        else navigate('/patient/appointments', { state: { completedCall: appointmentId } });
+    };
+
     const handleEndCall = () => {
         const { audioTrack, videoTrack } = localTracksRef.current;
-        if (audioTrack) {
-            audioTrack.stop();
-            audioTrack.close();
-        }
-        if (videoTrack) {
-            videoTrack.stop();
-            videoTrack.close();
-        }
+        if (audioTrack) { audioTrack.stop(); audioTrack.close(); }
+        if (videoTrack) { videoTrack.stop(); videoTrack.close(); }
         localTracksRef.current = { audioTrack: null, videoTrack: null };
 
         const client = agoraClientRef.current;
         agoraClientRef.current = null;
-        if (client) {
-            client.removeAllListeners();
-            void client.leave().catch(() => {});
-        }
+        if (client) { client.removeAllListeners(); void client.leave().catch(() => {}); }
 
-        if (remoteVideoRef.current) {
-            remoteVideoRef.current.innerHTML = '';
-        }
-
+        if (remoteVideoRef.current) remoteVideoRef.current.innerHTML = '';
         socketRef.current?.disconnect();
-        onEndCall?.();
+        navigateAway();
     };
     const sendMessage = e => {
         e.preventDefault();
@@ -544,7 +557,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     );
     if (phase === 'completed') return (
         <StatusScreen icon={<PhoneOff className="w-10 h-10 text-slate-400" />}
-            title="Call Ended" subtitle="This consultation has been completed." onClose={onEndCall}>
+            title="Call Ended" subtitle="This consultation has been completed." onClose={navigateAway}>
             {messages.length > 0 && (
                 <div className="w-full max-w-sm mt-2 bg-gray-800 rounded-xl overflow-hidden">
                     <p className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-700">Session Chat History</p>
@@ -565,7 +578,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     );
     if (phase === 'error') return (
         <StatusScreen icon={<PhoneOff className="w-10 h-10 text-red-400" />}
-            title="Session Error" subtitle={sessionError || 'Could not connect to this session.'} onClose={onEndCall} />
+            title="Session Error" subtitle={sessionError || 'Could not connect to this session.'} onClose={navigateAway} />
     );
 
     // ── timer bar color ───────────────────────────────────────────────────────
@@ -591,7 +604,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
 
     // ── main call UI ──────────────────────────────────────────────────────────
     return (
-        <div className="flex flex-col w-full rounded-2xl overflow-hidden shadow-2xl bg-gray-900">
+        <div ref={containerRef} className="flex flex-col w-full rounded-2xl overflow-hidden shadow-2xl bg-gray-900">
 
             {/* Timer bar */}
             <div className={`relative flex items-center justify-between px-6 py-3 transition-colors duration-700 ${timerGradient}`}>
@@ -632,6 +645,10 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                     <button onClick={() => setShowChat(c => !c)}
                         className={`p-2 rounded-lg transition ${showChat ? 'bg-white/20 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}>
                         <MessageSquare className="w-4 h-4" />
+                    </button>
+                    <button onClick={toggleFullscreen}
+                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition text-gray-300">
+                        {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
                     </button>
                 </div>
             </div>
@@ -686,6 +703,12 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                                             {fmt(remainingMs)} remaining
                                         </div>
                                     )}
+                                    <button
+                                        onClick={handleEndCall}
+                                        className="mt-2 flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-full text-sm font-bold transition"
+                                    >
+                                        <PhoneOff className="w-4 h-4" /> Leave Call
+                                    </button>
                                 </div>
                             )}
 
