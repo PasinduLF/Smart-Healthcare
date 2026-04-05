@@ -52,6 +52,9 @@ services:
     environment:
       - PORT=3004
       - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
+      - AGORA_APP_ID=ebd1cd2c36ac4a3394dc797349935d6f
+      - AGORA_APP_CERTIFICATE=45a454bb8c02433d91ad726c6e2c71c7
+      - AGORA_TOKEN_EXPIRY_SECONDS=3600
 
   payment-service:
     build: ./payment-service

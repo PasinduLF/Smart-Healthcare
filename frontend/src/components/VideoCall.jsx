@@ -1,20 +1,11 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Users, MessageSquare } from 'lucide-react';
 import { io } from 'socket.io-client';
+import AgoraRTC from 'agora-rtc-sdk-ng';
 import { useAuth } from '../context/AuthContext';
 import { getTelemedicineServiceUrl } from '../config/api';
 
 const TELE_URL = getTelemedicineServiceUrl();
-
-const ICE_SERVERS = {
-    iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'turn:openrelay.metered.ca:80',        username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443',       username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-    ]
-};
 
 function fmt(ms) {
     if (ms <= 0) return '00:00';
@@ -56,6 +47,17 @@ function normalizeSessionTime(value) {
     return trimmed;
 }
 
+function deriveAgoraUid(seed) {
+    const input = typeof seed === 'string' ? seed : String(seed || 'user');
+    let hash = 7;
+
+    for (let i = 0; i < input.length; i += 1) {
+        hash = ((hash * 31) + input.charCodeAt(i)) >>> 0;
+    }
+
+    return (hash % 2147483000) + 1;
+}
+
 function StatusScreen({ icon, title, subtitle, onClose, children }) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[320px] bg-gray-900 rounded-2xl text-center px-8 py-12 gap-4">
@@ -81,10 +83,9 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     const localVideoRef  = useRef(null);
     const remoteVideoRef = useRef(null);
     const socketRef      = useRef(null);
-    const pcRef          = useRef(null);
-    const localStreamRef = useRef(null);
+    const agoraClientRef = useRef(null);
+    const localTracksRef = useRef({ audioTrack: null, videoTrack: null });
     const tickRef        = useRef(null);
-    const makingOffer    = useRef(false);
     const chatEndRef     = useRef(null);
 
     // media
@@ -122,51 +123,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
 
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-    // ── WebRTC peer connection ────────────────────────────────────────────────
-    const createPC = useCallback((socket) => {
-        if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
-        const pc = new RTCPeerConnection(ICE_SERVERS);
-        pcRef.current = pc;
-
-        // add local tracks
-        localStreamRef.current?.getTracks().forEach(t => pc.addTrack(t, localStreamRef.current));
-
-        // remote tracks → show remote video
-        pc.ontrack = (e) => {
-            if (remoteVideoRef.current && e.streams[0]) {
-                remoteVideoRef.current.srcObject = e.streams[0];
-                setRemoteStream(true);
-            }
-        };
-
-        // ICE candidates
-        pc.onicecandidate = (e) => {
-            if (e.candidate) socket.emit('webrtc-ice-candidate', { appointmentId, candidate: e.candidate });
-        };
-
-        // negotiation — whoever is already in room when other joins will trigger this
-        pc.onnegotiationneeded = async () => {
-            try {
-                makingOffer.current = true;
-                const offer = await pc.createOffer();
-                if (pc.signalingState !== 'stable') return;
-                await pc.setLocalDescription(offer);
-                socket.emit('webrtc-offer', { appointmentId, offer: pc.localDescription });
-            } catch (err) {
-                console.error('Offer error:', err);
-            } finally {
-                makingOffer.current = false;
-            }
-        };
-
-        pc.onconnectionstatechange = () => {
-            if (pc.connectionState === 'failed') pc.restartIce();
-        };
-
-        return pc;
-    }, [appointmentId]);
-
-    // ── main effect ───────────────────────────────────────────────────────────
+    // ── Agora + session bootstrap ────────────────────────────────────────────
     useEffect(() => {
         if (!appointmentId || !role) return;
 
@@ -183,33 +140,24 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
         const socket = io(TELE_URL, { transports: ['websocket'] });
         socketRef.current = socket;
 
-        // ── WebRTC signal handlers ────────────────────────────────────────────
-        socket.on('webrtc-offer', async ({ offer }) => {
-            if (!mounted || !pcRef.current) return;
-            const pc = pcRef.current;
-            const collision = makingOffer.current || pc.signalingState !== 'stable';
-            const imPolite  = role === 'doctor'; // doctor is polite peer
-            if (collision && !imPolite) return;
-            try {
-                await pc.setRemoteDescription(new RTCSessionDescription(offer));
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                socket.emit('webrtc-answer', { appointmentId, answer: pc.localDescription });
-            } catch (err) { console.error('Answer error:', err); }
-        });
+        const clearRemoteVideo = () => {
+            if (remoteVideoRef.current) {
+                remoteVideoRef.current.innerHTML = '';
+            }
+        };
 
-        socket.on('webrtc-answer', async ({ answer }) => {
-            if (!mounted || !pcRef.current) return;
-            try {
-                if (pcRef.current.signalingState !== 'have-local-offer') return;
-                await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-            } catch (err) { console.error('Set answer error:', err); }
-        });
+        const syncAgoraPresence = () => {
+            const client = agoraClientRef.current;
+            if (!client) return;
 
-        socket.on('webrtc-ice-candidate', async ({ candidate }) => {
-            if (!mounted || !pcRef.current) return;
-            try { await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate)); } catch (_) {}
-        });
+            const anyRemoteVideo = client.remoteUsers.some((remoteUser) => !!remoteUser.videoTrack);
+            setRemoteStream(anyRemoteVideo);
+            setOtherPresent(client.remoteUsers.length > 0);
+
+            if (!anyRemoteVideo) {
+                clearRemoteVideo();
+            }
+        };
 
         // ── session handlers ──────────────────────────────────────────────────
         socket.on('session-joined', ({ status, remainingMs: rem, running, slotStart: ss, chat }) => {
@@ -239,17 +187,11 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
         socket.on('participant-joined', () => {
             if (!mounted) return;
             setOtherPresent(true);
-            // whoever was already in room triggers the offer
-            if (pcRef.current?.signalingState === 'stable') {
-                pcRef.current.onnegotiationneeded?.();
-            }
         });
 
         socket.on('participant-left', () => {
             if (!mounted) return;
-            setOtherPresent(false);
-            setRemoteStream(false);
-            if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+            syncAgoraPresence();
         });
 
         socket.on('timer-sync', ({ remainingMs: rem, running, status }) => {
@@ -266,14 +208,34 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             setTimerRunning(false);
             setRemainingMs(0);
             setPhase('completed');
-            localStreamRef.current?.getTracks().forEach(t => t.stop());
+
+            const { audioTrack, videoTrack } = localTracksRef.current;
+            if (audioTrack) {
+                audioTrack.stop();
+                audioTrack.close();
+            }
+            if (videoTrack) {
+                videoTrack.stop();
+                videoTrack.close();
+            }
+            localTracksRef.current = { audioTrack: null, videoTrack: null };
+
+            const client = agoraClientRef.current;
+            agoraClientRef.current = null;
+            if (client) {
+                client.removeAllListeners();
+                void client.leave().catch(() => {});
+            }
+
+            clearRemoteVideo();
+            setRemoteStream(false);
+            setOtherPresent(false);
         });
 
         socket.on('receive-message', msg => {
             if (mounted) setMessages(prev => [...prev, msg]);
         });
 
-        // ── get media then join ───────────────────────────────────────────────
         const joinSession = async () => {
             try {
                 const initRes = await fetch(`${TELE_URL}/session/init`, {
@@ -310,42 +272,205 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             }
         };
 
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-            .then(stream => {
-                if (!mounted) { stream.getTracks().forEach(t => t.stop()); return; }
-                localStreamRef.current = stream;
-                if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-                createPC(socket);
-                void joinSession();
-            })
-            .catch(() => {
-                setMediaError('Camera/Microphone access denied.');
-                createPC(socket);
-                void joinSession();
-            });
+        const initializeAgora = async () => {
+            try {
+                const uidSeed = user?.id ? `${role}-${user.id}` : `${role}-${appointmentId}`;
+                const fallbackUid = deriveAgoraUid(uidSeed);
+
+                const tokenRes = await fetch(`${TELE_URL}/agora/token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { Authorization: `Bearer ${token}` } : {})
+                    },
+                    body: JSON.stringify({
+                        appointmentId,
+                        role,
+                        uid: fallbackUid
+                    })
+                });
+
+                if (!tokenRes.ok) {
+                    let tokenError = 'Failed to get Agora session token.';
+                    try {
+                        const payload = await tokenRes.json();
+                        if (payload?.error) {
+                            tokenError = payload.error;
+                        }
+                    } catch (_) {
+                        // Ignore body parse errors and keep generic message.
+                    }
+                    throw new Error(tokenError);
+                }
+
+                const tokenPayload = await tokenRes.json();
+                const appId = tokenPayload?.appId;
+                const channelName = tokenPayload?.channelName;
+                const rtcToken = tokenPayload?.token;
+                const uid = Number(tokenPayload?.uid) || fallbackUid;
+
+                if (!appId || !channelName || !rtcToken) {
+                    throw new Error('Invalid Agora token response.');
+                }
+
+                const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
+                agoraClientRef.current = client;
+
+                client.on('user-published', async (remoteUser, mediaType) => {
+                    try {
+                        await client.subscribe(remoteUser, mediaType);
+
+                        if (mediaType === 'video' && remoteUser.videoTrack && remoteVideoRef.current) {
+                            clearRemoteVideo();
+                            remoteUser.videoTrack.play(remoteVideoRef.current);
+                        }
+
+                        if (mediaType === 'audio' && remoteUser.audioTrack) {
+                            remoteUser.audioTrack.play();
+                        }
+
+                        syncAgoraPresence();
+                    } catch (err) {
+                        console.error('Agora subscribe error:', err);
+                    }
+                });
+
+                client.on('user-unpublished', (remoteUser, mediaType) => {
+                    if (mediaType === 'audio' && remoteUser.audioTrack) {
+                        remoteUser.audioTrack.stop();
+                    }
+                    if (mediaType === 'video') {
+                        clearRemoteVideo();
+                    }
+                    syncAgoraPresence();
+                });
+
+                client.on('user-left', () => {
+                    clearRemoteVideo();
+                    syncAgoraPresence();
+                });
+
+                await client.join(appId, channelName, rtcToken, uid);
+
+                try {
+                    const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+                    if (!mounted) {
+                        audioTrack.close();
+                        videoTrack.close();
+                        return;
+                    }
+
+                    localTracksRef.current = { audioTrack, videoTrack };
+
+                    if (localVideoRef.current) {
+                        videoTrack.play(localVideoRef.current);
+                    }
+
+                    setMediaError('');
+                    setHasAudio(true);
+                    setHasVideo(true);
+
+                    await client.publish([audioTrack, videoTrack]);
+                } catch (mediaErr) {
+                    console.error('Agora local track error:', mediaErr);
+                    setMediaError('Camera/Microphone access denied.');
+                    localTracksRef.current = { audioTrack: null, videoTrack: null };
+                }
+
+                await joinSession();
+                syncAgoraPresence();
+            } catch (err) {
+                console.error('Agora initialization failed:', err);
+                if (mounted) {
+                    setSessionError(err?.message || 'Failed to connect to consultation channel.');
+                    setPhase('error');
+                }
+            }
+        };
+
+        socket.on('connect_error', () => {
+            if (!mounted) return;
+            setSessionError('Could not connect to telemedicine session server.');
+            setPhase('error');
+        });
+
+        void initializeAgora();
 
         return () => {
             mounted = false;
             clearInterval(tickRef.current);
             socket.disconnect();
-            pcRef.current?.close();
-            pcRef.current = null;
-            localStreamRef.current?.getTracks().forEach(t => t.stop());
+
+            const { audioTrack, videoTrack } = localTracksRef.current;
+            if (audioTrack) {
+                audioTrack.stop();
+                audioTrack.close();
+            }
+            if (videoTrack) {
+                videoTrack.stop();
+                videoTrack.close();
+            }
+            localTracksRef.current = { audioTrack: null, videoTrack: null };
+
+            const client = agoraClientRef.current;
+            agoraClientRef.current = null;
+            if (client) {
+                client.removeAllListeners();
+                void client.leave().catch(() => {});
+            }
+
+            clearRemoteVideo();
         };
-    }, [appointmentId, role, name, date, time, createPC, user?.id, token]);
+    }, [appointmentId, role, name, date, time, user?.id, token]);
 
     // ── controls ──────────────────────────────────────────────────────────────
-    const toggleVideo = () => {
-        localStreamRef.current?.getVideoTracks().forEach(t => { t.enabled = !t.enabled; });
-        setHasVideo(v => !v);
+    const toggleVideo = async () => {
+        const videoTrack = localTracksRef.current.videoTrack;
+        if (!videoTrack) return;
+
+        const nextEnabled = !hasVideo;
+        try {
+            await videoTrack.setEnabled(nextEnabled);
+            setHasVideo(nextEnabled);
+        } catch (err) {
+            console.error('Video toggle failed:', err);
+        }
     };
-    const toggleAudio = () => {
-        localStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = !t.enabled; });
-        setHasAudio(a => !a);
+    const toggleAudio = async () => {
+        const audioTrack = localTracksRef.current.audioTrack;
+        if (!audioTrack) return;
+
+        const nextEnabled = !hasAudio;
+        try {
+            await audioTrack.setEnabled(nextEnabled);
+            setHasAudio(nextEnabled);
+        } catch (err) {
+            console.error('Audio toggle failed:', err);
+        }
     };
     const handleEndCall = () => {
-        localStreamRef.current?.getTracks().forEach(t => t.stop());
-        pcRef.current?.close();
+        const { audioTrack, videoTrack } = localTracksRef.current;
+        if (audioTrack) {
+            audioTrack.stop();
+            audioTrack.close();
+        }
+        if (videoTrack) {
+            videoTrack.stop();
+            videoTrack.close();
+        }
+        localTracksRef.current = { audioTrack: null, videoTrack: null };
+
+        const client = agoraClientRef.current;
+        agoraClientRef.current = null;
+        if (client) {
+            client.removeAllListeners();
+            void client.leave().catch(() => {});
+        }
+
+        if (remoteVideoRef.current) {
+            remoteVideoRef.current.innerHTML = '';
+        }
+
         socketRef.current?.disconnect();
         onEndCall?.();
     };
@@ -465,8 +590,8 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                     ) : (
                         <>
                             {/* Remote video */}
-                            <video ref={remoteVideoRef} autoPlay playsInline
-                                className={`absolute inset-0 w-full h-full object-cover ${remoteStream ? '' : 'hidden'}`} />
+                            <div ref={remoteVideoRef}
+                                className={`absolute inset-0 w-full h-full ${remoteStream ? '' : 'hidden'}`} />
 
                             {/* Remote placeholder */}
                             {!remoteStream && (
@@ -482,8 +607,8 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
 
                             {/* Local PiP */}
                             <div className="absolute bottom-16 right-4 w-44 h-32 bg-gray-950 rounded-xl overflow-hidden border-2 border-gray-700 shadow-xl z-10">
-                                <video ref={localVideoRef} autoPlay playsInline muted
-                                    className={`w-full h-full object-cover ${hasVideo ? '' : 'hidden'}`} />
+                                <div ref={localVideoRef}
+                                    className={`w-full h-full ${hasVideo ? '' : 'hidden'}`} />
                                 {!hasVideo && (
                                     <div className="w-full h-full flex items-center justify-center bg-gray-800">
                                         <VideoOff className="w-7 h-7 text-gray-500" />

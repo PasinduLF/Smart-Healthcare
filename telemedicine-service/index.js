@@ -4,12 +4,17 @@ const cors    = require('cors');
 const http    = require('http');
 const { Server } = require('socket.io');
 const mongoose   = require('mongoose');
+const { RtcRole, RtcTokenBuilder } = require('agora-access-token');
 
 const app  = express();
 const PORT = process.env.PORT || 3004;
 
 const SLOT_DURATION_MS = 30 * 60 * 1000; //  30 min
 const EARLY_JOIN_MS    =  5 * 60 * 1000; //   5 min grace before slot
+
+const AGORA_APP_ID = process.env.AGORA_APP_ID || '';
+const AGORA_APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE || '';
+const AGORA_TOKEN_EXPIRY_SECONDS = Number(process.env.AGORA_TOKEN_EXPIRY_SECONDS || 3600);
 
 app.use(cors());
 app.use(express.json());
@@ -123,6 +128,23 @@ function parseSlotStart(dateStr, timeStr) {
     return slotStart;
 }
 
+function buildAppointmentChannelName(appointmentId) {
+    const normalized = String(appointmentId || '')
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .slice(0, 48);
+
+    return `appt_${normalized || 'general'}`;
+}
+
+function toSafeUid(value) {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    if (Number.isInteger(parsed) && parsed > 0 && parsed < 2147483647) {
+        return parsed;
+    }
+    return null;
+}
+
 function computeRemainingMs(session) {
     if (!session.timerStartedAt) return session.remainingMs;
     return Math.max(0, session.remainingMs - (Date.now() - session.timerStartedAt.getTime()));
@@ -142,6 +164,47 @@ function toClient(s) {
 }
 
 // ── REST ──────────────────────────────────────────────────────────────────────
+
+app.post('/agora/token', (req, res) => {
+    const { appointmentId, role, uid } = req.body || {};
+
+    if (!appointmentId) {
+        return res.status(400).json({ error: 'appointmentId is required' });
+    }
+
+    if (!AGORA_APP_ID || !AGORA_APP_CERTIFICATE) {
+        return res.status(500).json({ error: 'Agora credentials are not configured' });
+    }
+
+    try {
+        const channelName = buildAppointmentChannelName(appointmentId);
+        const safeUid = toSafeUid(uid) || Math.floor(Math.random() * 1000000) + 1;
+        const expiresAt = Math.floor(Date.now() / 1000) + AGORA_TOKEN_EXPIRY_SECONDS;
+
+        const rtcRole = String(role || '').toLowerCase() === 'audience'
+            ? RtcRole.SUBSCRIBER
+            : RtcRole.PUBLISHER;
+
+        const token = RtcTokenBuilder.buildTokenWithUid(
+            AGORA_APP_ID,
+            AGORA_APP_CERTIFICATE,
+            channelName,
+            safeUid,
+            rtcRole,
+            expiresAt
+        );
+
+        return res.json({
+            appId: AGORA_APP_ID,
+            channelName,
+            uid: safeUid,
+            token,
+            expiresAt
+        });
+    } catch (err) {
+        return res.status(500).json({ error: err.message || 'Failed to build Agora token' });
+    }
+});
 
 // Idempotent session bootstrap — called by frontend before socket join
 app.post('/session/init', async (req, res) => {
