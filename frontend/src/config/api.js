@@ -4,6 +4,9 @@ const ensureLeadingSlash = (value = '') => (value.startsWith('/') ? value : `/${
 const envApiBaseUrl = stripTrailingSlash((import.meta.env.VITE_API_BASE_URL || '').trim());
 const envBasePointsToLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(envApiBaseUrl);
 const safeEnvApiBaseUrl = import.meta.env.PROD && envBasePointsToLocalhost ? '' : envApiBaseUrl;
+const envTeleBaseUrl = stripTrailingSlash((import.meta.env.VITE_TELE_URL || '').trim());
+const teleBasePointsToLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(envTeleBaseUrl);
+const safeEnvTeleBaseUrl = import.meta.env.PROD && teleBasePointsToLocalhost ? '' : envTeleBaseUrl;
 const isLocalDevHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
 // In production, never default to localhost. Use env value or same-origin relative /api paths.
@@ -13,7 +16,8 @@ export const DOCTOR_SERVICE_BASE_URL = stripTrailingSlash((import.meta.env.VITE_
 export const AI_SERVICE_BASE_URL = stripTrailingSlash((import.meta.env.VITE_AI_SERVICE_URL || '').trim());
 export const APPOINTMENT_SERVICE_BASE_URL = stripTrailingSlash((import.meta.env.VITE_APPOINTMENT_SERVICE_URL || '').trim());
 export const PAYMENT_SERVICE_BASE_URL = stripTrailingSlash((import.meta.env.VITE_PAYMENT_SERVICE_URL || '').trim());
-export const TELE_BASE_URL = (import.meta.env.VITE_TELE_URL || '').trim();
+// Telemedicine relies on a websocket backend, so never default to the frontend origin in production.
+export const TELE_BASE_URL = safeEnvTeleBaseUrl || (isLocalDevHost ? 'http://localhost:3004' : '');
 
 export const getGatewayUrl = (path = '') => `${API_BASE_URL}${ensureLeadingSlash(path)}`;
 
@@ -90,4 +94,16 @@ export const getPaymentServiceUrl = (path = '') => {
 		: `/api/payments${normalizedPath}`;
 
 	return `${API_BASE_URL}${prefixedPath}`;
+};
+
+export const getTelemedicineServiceUrl = (path = '') => {
+	if (!TELE_BASE_URL) {
+		return '';
+	}
+
+	if (!path) {
+		return TELE_BASE_URL;
+	}
+
+	return `${TELE_BASE_URL}${ensureLeadingSlash(path)}`;
 };

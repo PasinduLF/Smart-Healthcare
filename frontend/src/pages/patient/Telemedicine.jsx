@@ -3,9 +3,9 @@ import { Video, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import VideoCall from '../../components/VideoCall';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
-import { getAppointmentServiceUrl, TELE_BASE_URL } from '../../config/api';
+import { getAppointmentServiceUrl, getTelemedicineServiceUrl } from '../../config/api';
 
-const TELE_URL = TELE_BASE_URL;
+const TELE_URL = getTelemedicineServiceUrl();
 
 export default function Telemedicine({ activeCall, setActiveCall }) {
     const { user, token } = useAuth();
@@ -28,8 +28,22 @@ export default function Telemedicine({ activeCall, setActiveCall }) {
             setExpanded(expanded === apptId ? null : apptId);
             return;
         }
+
+        if (!TELE_URL) {
+            setChatHistories(prev => ({ ...prev, [apptId]: [] }));
+            setExpanded(apptId);
+            return;
+        }
+
         try {
-            const res = await fetch(`${TELE_URL}/session/${apptId}/chat`);
+            const res = await fetch(`${TELE_URL}/session/${apptId}/chat`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined
+            });
+
+            if (!res.ok) {
+                throw new Error('Failed to load chat history');
+            }
+
             const data = await res.json();
             setChatHistories(prev => ({ ...prev, [apptId]: data }));
             setExpanded(apptId);

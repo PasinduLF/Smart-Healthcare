@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Users, MessageSquare } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
-import { TELE_BASE_URL } from '../config/api';
+import { getTelemedicineServiceUrl } from '../config/api';
 
-const TELE_URL = TELE_BASE_URL || (typeof window !== 'undefined' && !['localhost', '127.0.0.1'].includes(window.location.hostname) ? window.location.origin : 'http://localhost:3004');
+const TELE_URL = getTelemedicineServiceUrl();
 
 const ICE_SERVERS = {
     iceServers: [
@@ -39,7 +39,7 @@ function StatusScreen({ icon, title, subtitle, onClose, children }) {
 }
 
 export default function VideoCall({ appointmentId, date, time, onEndCall }) {
-    const { user } = useAuth();
+    const { user, token } = useAuth();
     const role = user?.role;
     const name = user?.name || role;
 
@@ -65,6 +65,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     const [timerRunning, setTimerRunning] = useState(false);
     const [slotStart,    setSlotStart]    = useState(null);
     const [otherPresent, setOtherPresent] = useState(false);
+    const [sessionError, setSessionError] = useState('');
 
     // chat
     const [messages,    setMessages]    = useState([]);
@@ -134,6 +135,13 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     // ── main effect ───────────────────────────────────────────────────────────
     useEffect(() => {
         if (!appointmentId || !role) return;
+
+        if (!TELE_URL) {
+            setSessionError('Telemedicine service is not configured for this environment.');
+            setPhase('error');
+            return;
+        }
+
         let mounted = true;
 
         const socket = io(TELE_URL, { transports: ['websocket'] });
@@ -183,7 +191,13 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             if (message === 'too_early')  { setPhase('too_early'); setSlotStart(ss ? new Date(ss) : null); }
             else if (message === 'too_late') setPhase('missed');
             else if (message === 'completed') setPhase('completed');
-            else setPhase('error');
+            else {
+                const fallbackMessage = message === 'not_found'
+                    ? 'Session is not ready yet. Please retry in a moment.'
+                    : 'Could not connect to this session.';
+                setSessionError(fallbackMessage);
+                setPhase('error');
+            }
         });
 
         socket.on('participant-joined', () => {
@@ -224,19 +238,40 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
         });
 
         // ── get media then join ───────────────────────────────────────────────
-        const joinSession = () => {
-            fetch(`${TELE_URL}/session/init`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    appointmentId,
-                    patientId: role === 'patient' ? user?.id : undefined,
-                    doctorId:  role === 'doctor'  ? user?.id : undefined,
-                    date, time
-                })
-            }).catch(() => {}).finally(() => {
+        const joinSession = async () => {
+            try {
+                const initRes = await fetch(`${TELE_URL}/session/init`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { Authorization: `Bearer ${token}` } : {})
+                    },
+                    body: JSON.stringify({
+                        appointmentId,
+                        patientId: role === 'patient' ? user?.id : undefined,
+                        doctorId:  role === 'doctor'  ? user?.id : undefined,
+                        date,
+                        time
+                    })
+                });
+
+                if (!initRes.ok) {
+                    let initError = 'Failed to initialize consultation session.';
+                    try {
+                        const payload = await initRes.json();
+                        if (payload?.error) {
+                            initError = payload.error;
+                        }
+                    } catch (_) {
+                        // Ignore body parse errors and use generic message.
+                    }
+                    throw new Error(initError);
+                }
+            } catch (err) {
+                console.error('Session init failed:', err);
+            } finally {
                 socket.emit('join-session', { appointmentId, role, name });
-            });
+            }
         };
 
         navigator.mediaDevices.getUserMedia({ video: true, audio: true })
@@ -245,12 +280,12 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                 localStreamRef.current = stream;
                 if (localVideoRef.current) localVideoRef.current.srcObject = stream;
                 createPC(socket);
-                joinSession();
+                void joinSession();
             })
             .catch(() => {
                 setMediaError('Camera/Microphone access denied.');
                 createPC(socket);
-                joinSession();
+                void joinSession();
             });
 
         return () => {
@@ -261,7 +296,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             pcRef.current = null;
             localStreamRef.current?.getTracks().forEach(t => t.stop());
         };
-    }, [appointmentId, role, name, date, time, createPC, user?.id]);
+    }, [appointmentId, role, name, date, time, createPC, user?.id, token]);
 
     // ── controls ──────────────────────────────────────────────────────────────
     const toggleVideo = () => {
@@ -333,7 +368,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     );
     if (phase === 'error') return (
         <StatusScreen icon={<PhoneOff className="w-10 h-10 text-red-400" />}
-            title="Session Error" subtitle="Could not connect to this session." onClose={onEndCall} />
+            title="Session Error" subtitle={sessionError || 'Could not connect to this session.'} onClose={onEndCall} />
     );
 
     // ── timer bar color ───────────────────────────────────────────────────────
