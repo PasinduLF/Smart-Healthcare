@@ -100,6 +100,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     const [timerRunning, setTimerRunning] = useState(false);
     const [slotStart,    setSlotStart]    = useState(null);
     const [otherPresent, setOtherPresent] = useState(false);
+    const hadOtherJoinedRef = useRef(false); // true once the other person has joined at least once
     const [sessionError, setSessionError] = useState('');
 
     // chat
@@ -175,6 +176,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             setTimerRunning(!!running);
             setSlotStart(ss ? new Date(ss) : null);
             setMessages(chat || []);
+            if (running) hadOtherJoinedRef.current = true;
         });
 
         // backend sends `message` field (not `code`) — fixed here
@@ -195,6 +197,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
         socket.on('participant-joined', () => {
             if (!mounted) return;
             setOtherPresent(true);
+            hadOtherJoinedRef.current = true;
         });
 
         socket.on('participant-left', () => {
@@ -659,16 +662,25 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                                 </div>
                             )}
 
-                            {/* Mid-call waiting overlay — other person left, timer paused */}
+                            {/* Waiting overlay — two distinct states */}
                             {phase === 'waiting' && !otherPresent && (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/90 z-20 gap-3">
                                     <div className="w-16 h-16 rounded-full bg-indigo-900/60 flex items-center justify-center animate-pulse">
                                         <Users className="w-8 h-8 text-indigo-300" />
                                     </div>
-                                    <p className="text-white font-bold text-lg">
-                                        {role === 'patient' ? 'Doctor' : 'Patient'} left the call
-                                    </p>
-                                    <p className="text-gray-400 text-sm">Timer is paused. Waiting for them to rejoin…</p>
+                                    {hadOtherJoinedRef.current ? (
+                                        <>
+                                            <p className="text-white font-bold text-lg">
+                                                {role === 'patient' ? 'Doctor' : 'Patient'} left the call
+                                            </p>
+                                            <p className="text-gray-400 text-sm">Timer is paused. Waiting for them to rejoin…</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="text-white font-bold text-lg">Waiting for {role === 'patient' ? 'doctor' : 'patient'} to join</p>
+                                            <p className="text-gray-400 text-sm">The timer will start once both participants are here.</p>
+                                        </>
+                                    )}
                                     {remainingMs !== null && (
                                         <div className="mt-1 px-4 py-2 bg-white/10 rounded-xl text-indigo-200 font-mono text-sm font-bold">
                                             {fmt(remainingMs)} remaining
