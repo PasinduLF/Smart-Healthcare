@@ -558,47 +558,68 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     );
 
     // ── timer bar color ───────────────────────────────────────────────────────
-    const timerBarClass = !timerRunning
-        ? 'bg-gray-800'
-        : remainingMs < 60000   ? 'bg-red-700 animate-pulse'
-        : remainingMs < 300000  ? 'bg-orange-700'
-        : 'bg-indigo-700';
+    const isUrgent   = timerRunning && remainingMs < 60000;
+    const isWarning  = timerRunning && remainingMs < 300000 && remainingMs >= 60000;
+    const timerGradient = !timerRunning
+        ? 'bg-gradient-to-r from-gray-800 to-gray-900'
+        : isUrgent
+        ? 'bg-gradient-to-r from-red-700 to-red-900'
+        : isWarning
+        ? 'bg-gradient-to-r from-orange-600 to-orange-800'
+        : 'bg-gradient-to-r from-indigo-700 to-indigo-900';
 
-    const timerTextClass = remainingMs < 60000
+    const timerTextClass = isUrgent
         ? 'text-red-200 animate-pulse'
-        : remainingMs < 300000
+        : isWarning
         ? 'text-orange-200'
         : 'text-white';
+
+    // progress bar width (0–100%)
+    const SLOT_MS = 30 * 60 * 1000;
+    const progressPct = timerRunning ? Math.max(0, Math.min(100, (remainingMs / SLOT_MS) * 100)) : null;
 
     // ── main call UI ──────────────────────────────────────────────────────────
     return (
         <div className="flex flex-col w-full rounded-2xl overflow-hidden shadow-2xl bg-gray-900">
 
             {/* Timer bar */}
-            <div className={`flex items-center justify-between px-6 py-3 transition-colors duration-1000 ${timerBarClass}`}>
-                <div className="flex items-center gap-2 text-white font-bold text-sm">
-                    <Clock className="w-4 h-4 shrink-0" />
+            <div className={`relative flex items-center justify-between px-6 py-3 transition-colors duration-700 ${timerGradient}`}>
+                {/* Progress track */}
+                {progressPct !== null && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10">
+                        <div
+                            className={`h-full transition-all duration-1000 ${isUrgent ? 'bg-red-400' : isWarning ? 'bg-orange-400' : 'bg-indigo-300'}`}
+                            style={{ width: `${progressPct}%` }}
+                        />
+                    </div>
+                )}
+                <div className="flex items-center gap-3 text-white">
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${timerRunning ? 'bg-white/15' : 'bg-white/10'}`}>
+                        <Clock className={`w-4 h-4 shrink-0 ${timerRunning ? '' : 'opacity-50'}`} />
+                    </div>
                     {timerRunning ? (
-                        <span>
-                            Time Remaining:&nbsp;
-                            <span className={`font-mono text-lg font-black ${timerTextClass}`}>{fmt(remainingMs)}</span>
-                            {remainingMs < 300000 && remainingMs > 0 && (
-                                <span className="ml-2 text-xs font-normal opacity-80">
-                                    {remainingMs < 60000 ? '⚠ Less than 1 minute!' : '⚠ 5 minutes remaining'}
-                                </span>
-                            )}
-                        </span>
+                        <div className="flex flex-col leading-tight">
+                            <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Time Remaining</span>
+                            <span className={`font-mono text-2xl font-black tracking-tight ${timerTextClass}`}>{fmt(remainingMs)}</span>
+                            {isUrgent && <span className="text-[10px] text-red-300 font-bold mt-0.5">⚠ Less than 1 minute!</span>}
+                            {isWarning && <span className="text-[10px] text-orange-300 font-bold mt-0.5">⚠ 5 minutes remaining</span>}
+                        </div>
                     ) : (
-                        <span className="text-gray-300">Waiting for {role === 'patient' ? 'doctor' : 'patient'} to join…</span>
+                        <div className="flex flex-col leading-tight">
+                            <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Status</span>
+                            <span className="text-sm font-semibold text-gray-300">
+                                Waiting for {role === 'patient' ? 'doctor' : 'patient'} to join…
+                            </span>
+                        </div>
                     )}
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5 text-gray-300 text-xs">
-                        <Users className="w-4 h-4" />
-                        {otherPresent || phase === 'active' ? '2 participants' : '1 participant'}
+                    <div className="flex items-center gap-1.5 text-gray-300 text-xs bg-white/10 px-3 py-1.5 rounded-full">
+                        <Users className="w-3.5 h-3.5" />
+                        <span>{otherPresent || phase === 'active' ? '2 / 2' : '1 / 2'}</span>
                     </div>
                     <button onClick={() => setShowChat(c => !c)}
-                        className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition text-white">
+                        className={`p-2 rounded-lg transition ${showChat ? 'bg-white/20 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}>
                         <MessageSquare className="w-4 h-4" />
                     </button>
                 </div>
@@ -627,6 +648,24 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                                             {otherPresent ? 'Establishing video connection…' : `Waiting for ${role === 'patient' ? 'doctor' : 'patient'} to join…`}
                                         </p>
                                     </div>
+                                </div>
+                            )}
+
+                            {/* Mid-call waiting overlay — other person left, timer paused */}
+                            {phase === 'waiting' && !otherPresent && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/90 z-20 gap-3">
+                                    <div className="w-16 h-16 rounded-full bg-indigo-900/60 flex items-center justify-center animate-pulse">
+                                        <Users className="w-8 h-8 text-indigo-300" />
+                                    </div>
+                                    <p className="text-white font-bold text-lg">
+                                        {role === 'patient' ? 'Doctor' : 'Patient'} left the call
+                                    </p>
+                                    <p className="text-gray-400 text-sm">Timer is paused. Waiting for them to rejoin…</p>
+                                    {remainingMs !== null && (
+                                        <div className="mt-1 px-4 py-2 bg-white/10 rounded-xl text-indigo-200 font-mono text-sm font-bold">
+                                            {fmt(remainingMs)} remaining
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

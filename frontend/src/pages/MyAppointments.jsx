@@ -1,10 +1,47 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { getAppointmentServiceUrl, getDoctorServiceUrl } from '../config/api';
+import { getAppointmentServiceUrl, getDoctorServiceUrl, getTelemedicineServiceUrl } from '../config/api';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 
-const getJoinState = () => ({ canJoin: true, label: 'Join Call' });
+const TELE_URL = getTelemedicineServiceUrl();
+
+const getJoinState = (date, time) => {
+    if (!date || !time) return { canJoin: true, label: 'Join Call' };
+
+    const parseTime = (t) => {
+        const twelve = t.match(/^(\d{1,2}):(\d{2})\s*([aApP][mM])$/);
+        if (twelve) {
+            let h = Number(twelve[1]) % 12;
+            if (twelve[3].toUpperCase() === 'PM') h += 12;
+            return h * 60 + Number(twelve[2]);
+        }
+        const twenty = t.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+        if (twenty) return Number(twenty[1]) * 60 + Number(twenty[2]);
+        return null;
+    };
+
+    const slotMinutes = parseTime(time.split('-')[0].trim());
+    if (slotMinutes === null) return { canJoin: true, label: 'Join Call' };
+
+    const now = new Date();
+    const slotDate = new Date(`${date}T00:00:00`);
+    slotDate.setMinutes(slotDate.getMinutes() + slotMinutes);
+
+    const diffMs = now - slotDate;
+    const EARLY_MS = 5 * 60 * 1000;
+    const WINDOW_MS = 30 * 60 * 1000;
+
+    if (diffMs < -EARLY_MS) {
+        const startTime = slotDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return { canJoin: false, label: `Starts at ${startTime}` };
+    }
+    if (diffMs > WINDOW_MS) {
+        return { canJoin: false, label: 'Slot Ended' };
+    }
+    return { canJoin: true, label: 'Join Call' };
+};
 
 const dayKeyFromDate = (dateStr) => {
     if (!dateStr) return null;
@@ -94,6 +131,15 @@ export default function MyAppointments({ setActiveCall }) {
     const [loading, setLoading] = useState(true);
     const [rescheduleData, setRescheduleData] = useState({ id: null, date: '', time: '' });
     const [doctorAppointments, setDoctorAppointments] = useState([]);
+    const [chatHistories, setChatHistories] = useState({});
+    const [expandedChat, setExpandedChat] = useState(null);
+    const [, setTick] = useState(0);
+
+    // Re-render every 30s so join state stays current
+    useEffect(() => {
+        const id = setInterval(() => setTick(t => t + 1), 30000);
+        return () => clearInterval(id);
+    }, []);
 
     const fetchAll = useCallback(async () => {
         if (!user?.id || !token) return;
@@ -160,6 +206,28 @@ export default function MyAppointments({ setActiveCall }) {
             console.error(err);
             alert('Failed to reschedule');
         }
+    };
+
+    const loadChat = async (apptId) => {
+        if (chatHistories[apptId] !== undefined) {
+            setExpandedChat(expandedChat === apptId ? null : apptId);
+            return;
+        }
+        if (!TELE_URL) {
+            setChatHistories(prev => ({ ...prev, [apptId]: [] }));
+            setExpandedChat(apptId);
+            return;
+        }
+        try {
+            const res = await fetch(`${TELE_URL}/session/${apptId}/chat`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined
+            });
+            const data = res.ok ? await res.json() : [];
+            setChatHistories(prev => ({ ...prev, [apptId]: data }));
+        } catch {
+            setChatHistories(prev => ({ ...prev, [apptId]: [] }));
+        }
+        setExpandedChat(apptId);
     };
 
     const startTelemedicine = (appt) => {
@@ -242,7 +310,8 @@ export default function MyAppointments({ setActiveCall }) {
                     <p className="text-gray-500 text-center py-10 italic">No appointments scheduled.</p>
                 ) : (
                     activeAppointments.map(appt => (
-                        <div key={appt._id} className="p-6 border rounded-xl bg-white/50 flex flex-col md:flex-row justify-between items-start md:items-center">
+                        <div key={appt._id} className="border rounded-xl bg-white/50 overflow-hidden">
+                            <div className="p-6 flex flex-col md:flex-row justify-between items-start md:items-center">
                             <div className="mb-4 md:mb-0">
                                 <h3 className="font-bold text-lg text-slate-800">{doctorMap?.[appt.doctorId] || 'Medical Specialist'}</h3>
                                 <p className="text-gray-500 font-medium">{appt.date} • {appt.time} • Doctor Acceptance Status: <span className={`font-black uppercase tracking-widest text-[10px] px-2 py-1 rounded-lg ${
@@ -304,7 +373,7 @@ export default function MyAppointments({ setActiveCall }) {
                                 {rescheduleData.id !== appt._id && (
                                     <>
                                         {appt.status === 'accepted' && appt.paymentStatus === 'paid' && (() => {
-                                            const { canJoin, label } = getJoinState();
+                                            const { canJoin, label } = getJoinState(appt.date, appt.time);
                                             return (
                                                 <button
                                                     onClick={() => canJoin && startTelemedicine(appt)}
@@ -319,6 +388,16 @@ export default function MyAppointments({ setActiveCall }) {
                                                 </button>
                                             );
                                         })()}
+                                        {appt.status === 'accepted' && (
+                                            <button
+                                                onClick={() => loadChat(appt._id)}
+                                                className="px-4 py-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition text-sm font-bold border border-slate-100 flex items-center gap-1.5"
+                                            >
+                                                <MessageSquare className="w-3.5 h-3.5" />
+                                                {expandedChat === appt._id ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                                Chat History
+                                            </button>
+                                        )}
                                         {appt.status !== 'cancelled' && (
                                             <>
                                                 <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition text-sm font-bold border border-slate-100">Reschedule</button>
@@ -331,6 +410,32 @@ export default function MyAppointments({ setActiveCall }) {
                                     </>
                                 )}
                             </div>
+                            </div>
+                            {/* Chat history panel */}
+                            {expandedChat === appt._id && (
+                                <div className="border-t bg-slate-50 px-6 py-4">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                        <MessageSquare className="w-3.5 h-3.5" /> Session Chat History
+                                    </p>
+                                    {!chatHistories[appt._id] || chatHistories[appt._id].length === 0 ? (
+                                        <p className="text-sm text-slate-400 italic">No chat messages for this session yet.</p>
+                                    ) : (
+                                        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                                            {chatHistories[appt._id].map((msg, i) => {
+                                                const isMe = msg.senderRole === 'patient';
+                                                return (
+                                                    <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                                        <span className="text-[10px] text-slate-400 mb-0.5">{msg.senderName} · {msg.time}</span>
+                                                        <div className={`px-3 py-2 rounded-xl text-sm max-w-[70%] break-words ${
+                                                            isMe ? 'bg-indigo-100 text-indigo-900' : 'bg-white border border-slate-200 text-slate-700'
+                                                        }`}>{msg.text}</div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     ))
                 )}
