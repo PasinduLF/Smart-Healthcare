@@ -130,6 +130,21 @@ const normalizeListPayload = (payload, candidateKeys = []) => {
     return [];
 };
 
+const parseObjectIdTimestamp = (value) => {
+    if (typeof value !== 'string' || !/^[0-9a-fA-F]{24}$/.test(value)) return 0;
+    return parseInt(value.slice(0, 8), 16) * 1000;
+};
+
+const getAppointmentCreatedTimestamp = (appointment) => {
+    if (!appointment) return 0;
+    const createdAt = appointment.createdAt || appointment.updatedAt;
+    if (createdAt) {
+        const parsed = Date.parse(createdAt);
+        if (!Number.isNaN(parsed)) return parsed;
+    }
+    return parseObjectIdTimestamp(appointment._id);
+};
+
 export default function MyAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
     const navigate = useNavigate();
@@ -314,7 +329,13 @@ export default function MyAppointments({ setActiveCall }) {
     }, [doctorAppointments, rescheduleData.date, rescheduleTarget]);
 
     const activeAppointments = useMemo(
-        () => normalizeListPayload(appointments).filter((appt) => appt.status !== 'cancelled'),
+        () => normalizeListPayload(appointments)
+            .filter((appt) => appt.status !== 'cancelled')
+            .sort((a, b) => {
+                const createdDiff = getAppointmentCreatedTimestamp(b) - getAppointmentCreatedTimestamp(a);
+                if (createdDiff !== 0) return createdDiff;
+                return String(b?._id || '').localeCompare(String(a?._id || ''));
+            }),
         [appointments]
     );
 
