@@ -27,6 +27,31 @@ const computeSplit = (minorAmount) => {
     return { doctorIncome, websiteCommission };
 };
 
+const formatRecordDescription = (tx) => {
+    const patientName = String(tx?.patientName || '').trim();
+    const orderId = String(tx?.orderId || '').trim();
+
+    if (patientName && orderId) {
+        return `PayHere payment for ${orderId} - Patient: ${patientName}`;
+    }
+
+    if (patientName) {
+        const baseDescription = (typeof tx?.description === 'string' && tx.description.trim())
+            ? tx.description.trim()
+            : 'Consultation payment';
+        const lowerBase = baseDescription.toLowerCase();
+        const patientTag = `patient: ${patientName.toLowerCase()}`;
+
+        if (lowerBase.includes(patientTag)) {
+            return baseDescription;
+        }
+
+        return `${baseDescription} - Patient: ${patientName}`;
+    }
+
+    return tx?.description || 'Consultation payment';
+};
+
 export default function ConsultationFeeCalulation() {
     const { user, token } = useAuth();
     const [loading, setLoading] = useState(true);
@@ -208,7 +233,7 @@ export default function ConsultationFeeCalulation() {
                                             return (
                                                 <tr key={tx._id} className="border-b border-slate-100 last:border-b-0">
                                                     <td className="py-3 pr-4 text-slate-700">{new Date(tx.date).toLocaleString()}</td>
-                                                    <td className="py-3 pr-4 text-slate-800">{tx.description || 'Consultation payment'}</td>
+                                                    <td className="py-3 pr-4 text-slate-800">{formatRecordDescription(tx)}</td>
                                                     <td className="py-3 pr-4 text-slate-600">{tx.orderId || '-'}</td>
                                                     <td className="py-3 pr-4 text-right font-semibold text-slate-900">{formatMoney(amount, currency)}</td>
                                                     <td className="py-3 pr-4 text-right font-semibold text-emerald-700">{formatMoney(split.doctorIncome, currency)}</td>

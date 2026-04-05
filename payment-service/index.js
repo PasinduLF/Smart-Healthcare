@@ -24,6 +24,7 @@ const transactionSchema = new mongoose.Schema({
     orderId: { type: String, index: true },
     appointmentId: { type: String },
     patientId: { type: String },
+    patientName: { type: String, default: '' },
     doctorId: { type: String },
     doctorName: { type: String, default: '' },
     status: { type: String, default: 'success' },
@@ -35,6 +36,7 @@ const pendingPaymentSchema = new mongoose.Schema({
     orderId: { type: String, required: true, unique: true },
     appointmentId: { type: String, required: true },
     patientId: { type: String, required: true },
+    patientName: { type: String, default: '' },
     doctorId: { type: String, required: true },
     doctorName: { type: String, default: '' },
     date: { type: String, required: true },
@@ -47,8 +49,10 @@ const pendingPaymentSchema = new mongoose.Schema({
 const PendingPayment = mongoose.model('PendingPayment', pendingPaymentSchema);
 
 const doctorServiceUrl = (process.env.DOCTOR_SERVICE_URL || 'http://doctor-service:3002').replace(/\/+$/, '');
+const patientServiceUrl = (process.env.PATIENT_SERVICE_URL || 'http://patient-service:3001').replace(/\/+$/, '');
 
 const normalizeDoctorName = (name = '') => String(name || '').trim();
+const normalizePatientName = (name = '') => String(name || '').trim();
 
 const withDoctorPrefix = (name = '') => {
     const normalized = normalizeDoctorName(name);
@@ -82,6 +86,33 @@ const appendDoctorToDescription = (description, doctorName, orderId) => {
     return `${baseDescription} - ${doctorLabel}`;
 };
 
+const stripDoctorInfoFromDescription = (description = '') => {
+    const text = String(description || '').trim();
+    if (!text) return '';
+
+    return text
+        .replace(/\s*\(Dr\.?[^)]*\)\s*$/i, '')
+        .replace(/\s*-\s*Dr\.?\s+.*$/i, '')
+        .trim();
+};
+
+const buildDoctorConsultationDescription = (orderId, patientName, fallbackDescription = '') => {
+    const normalizedPatientName = normalizePatientName(patientName);
+    const baseDescription = orderId
+        ? `PayHere payment for ${orderId}`
+        : (stripDoctorInfoFromDescription(fallbackDescription) || 'Consultation payment');
+
+    if (!normalizedPatientName) return baseDescription;
+
+    const patientTag = `Patient: ${normalizedPatientName}`;
+    const lowerBase = baseDescription.toLowerCase();
+    if (lowerBase.includes(patientTag.toLowerCase())) {
+        return baseDescription;
+    }
+
+    return `${baseDescription} - ${patientTag}`;
+};
+
 const extractOrderIdFromDescription = (description = '') => {
     const prefix = 'PayHere payment for ';
     const normalizedDescription = String(description || '').trim();
@@ -109,6 +140,26 @@ const fetchDoctorNamesByIds = async (doctorIds) => {
     return doctorNamesById;
 };
 
+const fetchPatientNamesByIds = async (patientIds) => {
+    const patientNamesById = new Map();
+
+    await Promise.all(
+        patientIds.map(async (patientId) => {
+            try {
+                const response = await axios.get(`${patientServiceUrl}/profile/${patientId}`, { timeout: 4000 });
+                const patientName = normalizePatientName(response?.data?.name);
+                if (patientName) {
+                    patientNamesById.set(patientId, patientName);
+                }
+            } catch (err) {
+                // Keep response resilient even if patient-service lookup fails.
+            }
+        })
+    );
+
+    return patientNamesById;
+};
+
 const buildPayHereHash = (merchantId, orderId, amount, currency, merchantSecret) => {
     const secretHash = crypto.createHash('md5').update(merchantSecret || '').digest('hex').toUpperCase();
     const hashInput = `${merchantId}${orderId}${amount}${currency}${secretHash}`;
@@ -121,6 +172,7 @@ const syncAppointmentPayment = async (payment) => {
 };
 
 const recordSuccessfulTransaction = async (payment) => {
+    const patientName = normalizePatientName(payment.patientName);
     const doctorName = normalizeDoctorName(payment.doctorName);
     const description = buildTransactionDescription(payment.orderId, doctorName);
 
@@ -134,6 +186,7 @@ const recordSuccessfulTransaction = async (payment) => {
                 orderId: payment.orderId,
                 appointmentId: payment.appointmentId,
                 patientId: payment.patientId,
+                patientName,
                 doctorId: payment.doctorId,
                 doctorName,
                 status: 'success'
@@ -219,6 +272,7 @@ app.post('/payhere/checkout', async (req, res) => {
             orderId,
             appointmentId,
             patientId,
+            patientName: normalizePatientName(customerName),
             doctorId,
             doctorName: normalizeDoctorName(doctorName),
             date,
@@ -375,6 +429,7 @@ app.get('/transactions/patient/:patientId', async (req, res) => {
                 orderId: resolvedOrderId || tx.orderId,
                 appointmentId: tx.appointmentId || paymentMeta?.appointmentId,
                 patientId: tx.patientId || paymentMeta?.patientId || patientId,
+                patientName: normalizePatientName(tx.patientName || paymentMeta?.patientName),
                 doctorId: tx.doctorId || paymentMeta?.doctorId,
                 doctorName: normalizeDoctorName(tx.doctorName || paymentMeta?.doctorName)
             };
@@ -474,6 +529,7 @@ app.get('/transactions/doctor/:doctorId', async (req, res) => {
                 orderId: resolvedOrderId || tx.orderId,
                 appointmentId: tx.appointmentId || paymentMeta?.appointmentId,
                 patientId: tx.patientId || paymentMeta?.patientId,
+                patientName: normalizePatientName(tx.patientName || paymentMeta?.patientName),
                 doctorId: tx.doctorId || paymentMeta?.doctorId || doctorId,
                 doctorName: normalizeDoctorName(tx.doctorName || paymentMeta?.doctorName)
             };
@@ -495,12 +551,27 @@ app.get('/transactions/doctor/:doctorId', async (req, res) => {
             mergedTxs.find((tx) => normalizeDoctorName(tx.doctorName))?.doctorName
         );
 
+        const patientIdsToResolve = Array.from(
+            new Set(
+                mergedTxs
+                    .filter((tx) => tx.patientId && !normalizePatientName(tx.patientName))
+                    .map((tx) => tx.patientId)
+            )
+        );
+
+        const patientNamesById = patientIdsToResolve.length > 0
+            ? await fetchPatientNamesByIds(patientIdsToResolve)
+            : new Map();
+
         const displayTxs = mergedTxs.map((tx) => {
             const resolvedDoctorName = normalizeDoctorName(tx.doctorName || doctorName);
+            const resolvedPatientName = normalizePatientName(tx.patientName || patientNamesById.get(tx.patientId));
+
             return {
                 ...tx,
                 doctorName: resolvedDoctorName,
-                description: appendDoctorToDescription(tx.description, resolvedDoctorName, tx.orderId)
+                patientName: resolvedPatientName,
+                description: buildDoctorConsultationDescription(tx.orderId, resolvedPatientName, tx.description)
             };
         });
 
