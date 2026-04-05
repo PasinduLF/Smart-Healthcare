@@ -99,17 +99,28 @@ app.post('/session/init', async (req, res) => {
         return res.status(400).json({ error: 'appointmentId is required' });
     try {
         const slotStart = (date && time) ? parseSlotStart(date, time) : new Date();
-        const s = await Session.findOneAndUpdate(
-            { appointmentId },
-            { $setOnInsert: {
-                appointmentId, patientId, doctorId,
-                slotStart,
-                slotEnd: new Date(slotStart.getTime() + SLOT_DURATION_MS),
-                remainingMs: SLOT_DURATION_MS,
-                status: 'waiting'
-            }},
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
+        let s;
+        try {
+            s = await Session.findOneAndUpdate(
+                { appointmentId },
+                { $setOnInsert: {
+                    appointmentId, patientId, doctorId,
+                    slotStart,
+                    slotEnd: new Date(slotStart.getTime() + SLOT_DURATION_MS),
+                    remainingMs: SLOT_DURATION_MS,
+                    status: 'waiting'
+                }},
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+        } catch (upsertErr) {
+            // Handle duplicate key race condition — just fetch the existing doc
+            if (upsertErr.code === 11000) {
+                s = await Session.findOne({ appointmentId });
+            } else {
+                throw upsertErr;
+            }
+        }
+        if (!s) return res.status(500).json({ error: 'Failed to create or find session' });
         res.json(toClient(s));
     } catch (err) { res.status(500).json({ error: err.message }); }
 });

@@ -6,28 +6,7 @@ import { getAppointmentServiceUrl } from '../../config/api';
 import { useNavigate } from 'react-router-dom';
 import { Activity, X } from 'lucide-react';
 
-function parseSlotStart(dateStr, timeStr) {
-    if (!dateStr || !timeStr) return null;
-    const parts = timeStr.trim().split(' ');
-    if (parts.length < 2) return null;
-    let [h, m] = parts[0].split(':').map(Number);
-    const mer = parts[1].toUpperCase();
-    if (mer === 'PM' && h !== 12) h += 12;
-    if (mer === 'AM' && h === 12) h  =  0;
-    const d = new Date(`${dateStr}T00:00:00`);
-    d.setHours(h, m, 0, 0);
-    return d;
-}
-
-function getJoinState(dateStr, timeStr) {
-    const slotStart = parseSlotStart(dateStr, timeStr);
-    if (!slotStart) return { canJoin: true, label: 'Start Consultation' };
-    const now       = Date.now();
-    const joinFrom  = slotStart.getTime() - 5 * 60 * 1000;
-    const joinUntil = slotStart.getTime() + 30 * 60 * 1000;
-    const label12   = slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (now < joinFrom)  return { canJoin: false, label: `Starts at ${label12}` };
-    if (now > joinUntil) return { canJoin: false, label: 'Slot Ended' };
+function getJoinState() {
     return { canJoin: true, label: 'Start Consultation' };
 }
 
@@ -38,10 +17,6 @@ export default function DoctorAppointments({ setActiveCall }) {
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [loading, setLoading] = useState(true);
     const [, setTick] = useState(0);
-    useEffect(() => {
-        const t = setInterval(() => setTick(n => n + 1), 30000); // re-evaluate join state every 30s
-        return () => clearInterval(t);
-    }, []);
 
     useEffect(() => {
         const fetchAppointments = async () => {
@@ -146,7 +121,7 @@ export default function DoctorAppointments({ setActiveCall }) {
                                     </>
                                 )}
                                 {appt.status === 'accepted' && (() => {
-                                    const { canJoin, label } = getJoinState(appt.date, appt.time);
+                                    const { canJoin, label } = getJoinState();
                                     return (
                                         <button
                                             onClick={() => canJoin && startTelemedicine(appt)}

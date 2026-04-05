@@ -4,7 +4,7 @@ import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 import { TELE_BASE_URL } from '../config/api';
 
-const TELE_URL = TELE_BASE_URL;
+const TELE_URL = TELE_BASE_URL || (typeof window !== 'undefined' && !['localhost', '127.0.0.1'].includes(window.location.hostname) ? window.location.origin : 'http://localhost:3004');
 
 const ICE_SERVERS = {
     iceServers: [
