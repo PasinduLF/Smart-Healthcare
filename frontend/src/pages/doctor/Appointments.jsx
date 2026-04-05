@@ -48,10 +48,28 @@ function getJoinState(date, time) {
     return { canJoin: true, label: 'Start Consultation' };
 }
 
+const parseObjectIdTimestamp = (id) => {
+    if (!id || typeof id !== 'string' || id.length < 8) return 0;
+    const seconds = Number.parseInt(id.slice(0, 8), 16);
+    if (Number.isNaN(seconds)) return 0;
+    return seconds * 1000;
+};
+
+const getAppointmentTimestamp = (appointment) => {
+    const createdAtMs = Date.parse(appointment?.createdAt || '');
+    if (Number.isFinite(createdAtMs) && createdAtMs > 0) return createdAtMs;
+    return parseObjectIdTimestamp(appointment?._id);
+};
+
+const sortAppointmentsNewestFirst = (items = []) => {
+    return [...items].sort((a, b) => getAppointmentTimestamp(b) - getAppointmentTimestamp(a));
+};
+
 export default function DoctorAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
     const navigate = useNavigate();
     const [appointments, setAppointments] = useState([]);
+    const [patientNames, setPatientNames] = useState({});
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [loading, setLoading] = useState(true);
     const [, setTick] = useState(0);
@@ -69,7 +87,33 @@ export default function DoctorAppointments({ setActiveCall }) {
                 const res = await axios.get(getAppointmentServiceUrl(`/doctor/${user.id}`), {
                     headers: { Authorization: `Bearer ${token}` } 
                 });
-                setAppointments(res.data);
+
+                const incomingAppointments = Array.isArray(res.data) ? res.data : [];
+                const sortedAppointments = sortAppointmentsNewestFirst(incomingAppointments);
+                setAppointments(sortedAppointments);
+
+                const uniquePatientIds = Array.from(
+                    new Set(sortedAppointments.map((appt) => appt.patientId).filter(Boolean))
+                );
+
+                if (uniquePatientIds.length > 0) {
+                    const patientNameEntries = await Promise.all(
+                        uniquePatientIds.map(async (patientId) => {
+                            try {
+                                const pRes = await axios.get(getPatientServiceUrl(`/profile/${patientId}`), {
+                                    headers: { Authorization: `Bearer ${token}` }
+                                });
+                                return [patientId, pRes.data?.name || 'Unknown Patient'];
+                            } catch (err) {
+                                return [patientId, 'Unknown Patient'];
+                            }
+                        })
+                    );
+
+                    setPatientNames(Object.fromEntries(patientNameEntries));
+                } else {
+                    setPatientNames({});
+                }
             } catch (err) {
                 console.error("Error fetching appointments", err);
             } finally {
@@ -85,6 +129,9 @@ export default function DoctorAppointments({ setActiveCall }) {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setSelectedPatient(pRes.data);
+            if (pRes.data?.name) {
+                setPatientNames((prev) => ({ ...prev, [patientId]: pRes.data.name }));
+            }
         } catch(err) { 
             console.error(err);
             alert("Failed to fetch patient data"); 
@@ -96,7 +143,7 @@ export default function DoctorAppointments({ setActiveCall }) {
             await axios.put(getAppointmentServiceUrl(`/accept/${id}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAppointments(appointments.map(a => a._id === id ? { ...a, status: 'accepted' } : a));
+            setAppointments((prev) => prev.map((a) => a._id === id ? { ...a, status: 'accepted' } : a));
         } catch (err) {
             console.error(err);
             alert("Failed to accept");
@@ -108,7 +155,7 @@ export default function DoctorAppointments({ setActiveCall }) {
             await axios.put(getAppointmentServiceUrl(`/reject/${id}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAppointments(appointments.map(a => a._id === id ? { ...a, status: 'rejected' } : a));
+            setAppointments((prev) => prev.map((a) => a._id === id ? { ...a, status: 'rejected' } : a));
         } catch (err) {
             console.error(err);
             alert("Failed to reject");
@@ -153,7 +200,7 @@ export default function DoctorAppointments({ setActiveCall }) {
                         <div key={appt._id} className={`p-6 border rounded-2xl bg-white/50 flex flex-col md:flex-row justify-between md:items-center shadow-sm hover:shadow-md transition-all ${appt.status === 'cancelled' || appt.status === 'rejected' ? 'opacity-50' : ''}`}>
                             <div className="mb-4 md:mb-0">
                                 <h3 className="font-bold text-slate-800 cursor-pointer hover:text-teal-600 flex items-center gap-2 group" onClick={() => viewPatientProfile(appt.patientId)}>
-                                    Patient: <span className="underline decoration-slate-200 group-hover:decoration-teal-200">{appt.patientId}</span>
+                                    Patient: <span className="underline decoration-slate-200 group-hover:decoration-teal-200">{patientNames[appt.patientId] || 'Unknown Patient'}</span>
                                 </h3>
                                 <p className="text-slate-400 text-xs font-bold mt-1 uppercase tracking-tight">{appt.date} • {appt.time} • Status: <span className={`font-black uppercase tracking-widest ${appt.status === 'accepted' ? 'text-teal-600' : 'text-orange-500'}`}>{appt.status}</span></p>
                             </div>
