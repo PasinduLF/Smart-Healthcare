@@ -25,7 +25,7 @@ spec:
           value: "supersecret_key"
         # We would list the other service URLs here, assuming K8s DNS (e.g., http://patient-service:3001)
         - name: PATIENT_SERVICE_URL
-          value: "http://patient-service:3001"
+          value: "https://smart-healthcare-lckn.onrender.com"
         - name: DOCTOR_SERVICE_URL
           value: "http://doctor-service:3002"
         - name: APPOINTMENT_SERVICE_URL

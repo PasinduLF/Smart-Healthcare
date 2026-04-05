@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { getPatientServiceUrl } from '../../config/api';
 import { useNavigate } from 'react-router-dom';
 import { Activity, X } from 'lucide-react';
 
@@ -60,7 +61,7 @@ export default function DoctorAppointments({ setActiveCall }) {
 
     const viewPatientProfile = async (patientId) => {
         try {
-            const pRes = await axios.get(`http://localhost:3000/api/patients/profile/${patientId}`, { 
+            const pRes = await axios.get(getPatientServiceUrl(`/profile/${patientId}`), { 
                 headers: { Authorization: `Bearer ${token}` }
             });
             setSelectedPatient(pRes.data);

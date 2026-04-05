@@ -45,7 +45,7 @@ app.get('/health', (req, res) => {
 
 // Admin specific routes from services (protected by role)
 app.get('/api/patients/stats', authenticateToken, requireRole(['admin']), createProxyMiddleware({
-    target: process.env.PATIENT_SERVICE_URL || 'http://localhost:3001',
+    target: process.env.PATIENT_SERVICE_URL || 'https://smart-healthcare-lckn.onrender.com',
     changeOrigin: true,
 }));
 
@@ -66,7 +66,7 @@ app.put('/api/doctors/verify/:id', authenticateToken, requireRole(['admin']), cr
 
 // Patient Service (Public routes like login/register)
 app.use('/api/patients', createProxyMiddleware({
-    target: process.env.PATIENT_SERVICE_URL || 'http://localhost:3001',
+    target: process.env.PATIENT_SERVICE_URL || 'https://smart-healthcare-lckn.onrender.com',
     changeOrigin: true,
 }));
 

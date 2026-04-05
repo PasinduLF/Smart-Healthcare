@@ -3,9 +3,10 @@ import { Video, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import VideoCall from '../../components/VideoCall';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
+import { API_BASE_URL, TELE_BASE_URL } from '../../config/api';
 
-const TELE_URL = import.meta.env.VITE_TELE_URL || 'http://localhost:3004';
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const TELE_URL = TELE_BASE_URL;
+const API_BASE = API_BASE_URL;
 
 export default function Telemedicine({ activeCall, setActiveCall }) {
     const { user, token } = useAuth();

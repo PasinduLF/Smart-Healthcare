@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { getPatientServiceUrl } from '../../config/api';
 import { Brain, LogOut } from 'lucide-react';
 
 export default function AIAnalyzer() {
@@ -16,7 +17,7 @@ export default function AIAnalyzer() {
         const fetchContext = async () => {
             if (!user?.id) return;
             try {
-                const res = await axios.get(`http://localhost:3000/api/patients/profile/${user.id}`, { 
+                const res = await axios.get(getPatientServiceUrl(`/profile/${user.id}`), { 
                     headers: { Authorization: `Bearer ${token}` } 
                 });
                 setHealthProfile(res.data);

@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Users, MessageSquare } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
+import { TELE_BASE_URL } from '../config/api';
 
-const TELE_URL = import.meta.env.VITE_TELE_URL || 'http://localhost:3004';
+const TELE_URL = TELE_BASE_URL;
 
 const ICE_SERVERS = {
     iceServers: [
@@ -176,14 +177,13 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             setMessages(chat || []);
         });
 
-        // backend sends `message` field — fixed to match frontend listener
-        socket.on('session-error', ({ message, code, slotStart: ss }) => {
+        // backend sends `message` field (not `code`) — fixed here
+        socket.on('session-error', ({ message, slotStart: ss }) => {
             if (!mounted) return;
-            const err = message || code;
-            if (err === 'too_early')  { setPhase('too_early'); setSlotStart(ss ? new Date(ss) : null); }
-            else if (err === 'too_late' || err === 'missed') setPhase('missed');
-            else if (err === 'completed') setPhase('completed');
-            else { console.error('session-error:', message, code); setPhase('error'); }
+            if (message === 'too_early')  { setPhase('too_early'); setSlotStart(ss ? new Date(ss) : null); }
+            else if (message === 'too_late') setPhase('missed');
+            else if (message === 'completed') setPhase('completed');
+            else setPhase('error');
         });
 
         socket.on('participant-joined', () => {
@@ -224,29 +224,19 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
         });
 
         // ── get media then join ───────────────────────────────────────────────
-        const joinSession = async () => {
-            try {
-                const res = await fetch(`${TELE_URL}/session/init`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        appointmentId,
-                        patientId: role === 'patient' ? user?.id : undefined,
-                        doctorId:  role === 'doctor'  ? user?.id : undefined,
-                        date, time
-                    })
-                });
-                if (!res.ok) {
-                    const body = await res.json().catch(() => ({}));
-                    console.error('session/init failed:', body);
-                    if (mounted) setPhase('error');
-                    return;
-                }
+        const joinSession = () => {
+            fetch(`${TELE_URL}/session/init`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    appointmentId,
+                    patientId: role === 'patient' ? user?.id : undefined,
+                    doctorId:  role === 'doctor'  ? user?.id : undefined,
+                    date, time
+                })
+            }).catch(() => {}).finally(() => {
                 socket.emit('join-session', { appointmentId, role, name });
-            } catch (err) {
-                console.error('session/init network error:', err);
-                if (mounted) setPhase('error');
-            }
+            });
         };
 
         navigator.mediaDevices.getUserMedia({ video: true, audio: true })

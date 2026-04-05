@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
-import { API_BASE_URL } from '../config/api';
+import { getGatewayUrl, getPatientServiceUrl } from '../config/api';
 
 const AuthContext = createContext(null);
 
@@ -31,10 +31,11 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password, role) => {
         try {
-            // Determine the service endpoint based on the UI role selection
-            const endpoint = role === 'doctor' ? '/api/doctors/login' : '/api/patients/login';
+            const endpoint = role === 'doctor'
+                ? getGatewayUrl('/api/doctors/login')
+                : getPatientServiceUrl('/login');
 
-            const response = await axios.post(`${API_BASE_URL}${endpoint}`, { email, password });
+            const response = await axios.post(endpoint, { email, password });
             
             const newToken = response.data.token;
             
@@ -67,8 +68,11 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (userData, role) => {
         try {
-            const endpoint = role === 'doctor' ? '/api/doctors/register' : '/api/patients/register';
-            const response = await axios.post(`${API_BASE_URL}${endpoint}`, userData);
+            const endpoint = role === 'doctor'
+                ? getGatewayUrl('/api/doctors/register')
+                : getPatientServiceUrl('/register');
+
+            const response = await axios.post(endpoint, userData);
             return { success: true };
         } catch (error) {
             return { success: false, error: error.response?.data?.error || 'Registration failed' };

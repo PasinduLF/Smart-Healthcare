@@ -7,7 +7,7 @@ services:
       - "3000:3000"
     environment:
       - PORT=3000
-      - PATIENT_SERVICE_URL=http://patient-service:3001
+      - PATIENT_SERVICE_URL=https://smart-healthcare-lckn.onrender.com
       - DOCTOR_SERVICE_URL=http://doctor-service:3002
       - APPOINTMENT_SERVICE_URL=http://appointment-service:3003
       - TELEMEDICINE_SERVICE_URL=http://telemedicine-service:3004

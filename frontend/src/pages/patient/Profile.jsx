@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { getPatientServiceUrl } from '../../config/api';
 
 export default function Profile() {
     const { user, token } = useAuth();
@@ -11,7 +12,7 @@ export default function Profile() {
         const fetchProfile = async () => {
             if (!user?.id) return;
             try {
-                const res = await axios.get(`http://localhost:3000/api/patients/profile/${user.id}`, { 
+                const res = await axios.get(getPatientServiceUrl(`/profile/${user.id}`), { 
                     headers: { Authorization: `Bearer ${token}` } 
                 });
                 setProfileData({
@@ -31,7 +32,7 @@ export default function Profile() {
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
         try {
-            await axios.put(`http://localhost:3000/api/patients/profile/${user.id}`, profileData, {
+            await axios.put(getPatientServiceUrl(`/profile/${user.id}`), profileData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             alert("Profile updated successfully!");
