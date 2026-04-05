@@ -71,7 +71,8 @@ services:
       - PORT=3005
       - PAYHERE_MERCHANT_ID=1234712
       - PAYHERE_MERCHANT_SECRET=MTg4NDA5NTM2ODI4NDIyOTk4NjgxNjkyODY4MTYxMjgwNzUxNjY2Mg==
-      - FRONTEND_BASE_URL=https://www.smarthealthcar.me
+      - FRONTEND_BASE_URL=https://smarthealthcar.me
+      - PAYHERE_RETURN_BASE_URL=https://smarthealthcar.me
       - PAYHERE_NOTIFY_URL=https://smart-healthcare-payment.onrender.com/payhere/notify
 
   notification-service:

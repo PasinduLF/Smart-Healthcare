@@ -166,6 +166,32 @@ const buildPayHereHash = (merchantId, orderId, amount, currency, merchantSecret)
     return crypto.createHash('md5').update(hashInput).digest('hex').toUpperCase();
 };
 
+const sanitizeOrigin = (value = '') => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+
+    try {
+        const parsed = new URL(raw);
+        if (!/^https?:$/i.test(parsed.protocol)) return '';
+        return `${parsed.protocol}//${parsed.host}`;
+    } catch (err) {
+        return '';
+    }
+};
+
+const resolvePayHereReturnBaseUrl = (requestedOrigin = '') => {
+    const explicitBaseUrl = sanitizeOrigin(process.env.PAYHERE_RETURN_BASE_URL || '');
+    if (explicitBaseUrl) return explicitBaseUrl;
+
+    const frontendOrigin = sanitizeOrigin(requestedOrigin);
+    if (frontendOrigin) return frontendOrigin;
+
+    const frontendBaseUrl = sanitizeOrigin(process.env.FRONTEND_BASE_URL || '');
+    if (frontendBaseUrl) return frontendBaseUrl;
+
+    return 'http://localhost:5173';
+};
+
 const syncAppointmentPayment = async (payment) => {
     const appointmentServiceUrl = process.env.APPOINTMENT_SERVICE_URL || 'http://appointment-service:3003';
     await axios.put(`${appointmentServiceUrl}/payment/${payment.appointmentId}`);
@@ -246,14 +272,15 @@ app.post('/payhere/checkout', async (req, res) => {
             customerPhone,
             address,
             city,
-            country
+            country,
+            frontendOrigin
         } = req.body;
 
         if (!appointmentId || !patientId || !doctorId || !date || !time) {
             return res.status(400).json({ error: 'Missing appointment details' });
         }
 
-        const merchantId = (process.env.PAYHERE_MERCHANT_ID || '1220000').trim();
+        const merchantId = (process.env.PAYHERE_MERCHANT_ID || '').trim();
         const merchantSecret = (process.env.PAYHERE_MERCHANT_SECRET || '').trim();
         const amountValue = Number(amount) || 0;
         const amountFormatted = amountValue.toFixed(2);
@@ -281,7 +308,7 @@ app.post('/payhere/checkout', async (req, res) => {
             currency: currencyValue
         }).save();
 
-        const frontendBaseUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+        const frontendBaseUrl = resolvePayHereReturnBaseUrl(frontendOrigin);
         const notifyUrl = process.env.PAYHERE_NOTIFY_URL || 'http://localhost:3000/api/payments/payhere/notify';
 
         const hash = buildPayHereHash(merchantId, orderId, amountFormatted, currencyValue, merchantSecret);
@@ -289,6 +316,7 @@ app.post('/payhere/checkout', async (req, res) => {
         console.log('PayHere checkout prepared', {
             orderId,
             merchantId,
+            frontendBaseUrl,
             amount: amountFormatted,
             currency: currencyValue,
             hash

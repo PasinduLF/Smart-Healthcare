@@ -83,7 +83,8 @@ export default function PatientPaymentService() {
 				doctorName,
 				customerName: user?.name || 'Patient',
 				customerEmail: user?.email || 'patient@example.com',
-				customerPhone: user?.contactNumber || '0000000000'
+				customerPhone: user?.contactNumber || '0000000000',
+				frontendOrigin: window.location.origin
 			}, {
 				headers: { Authorization: `Bearer ${token}` }
 			});
