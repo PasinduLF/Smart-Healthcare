@@ -121,6 +121,14 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
         return () => clearInterval(tickRef.current);
     }, [timerRunning]);
 
+    // ── replay local video into PiP once ref is ready ─────────────────────────
+    useEffect(() => {
+        const videoTrack = localTracksRef.current?.videoTrack;
+        if (videoTrack && localVideoRef.current) {
+            videoTrack.play(localVideoRef.current);
+        }
+    });
+
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
     // ── Agora + session bootstrap ────────────────────────────────────────────
@@ -672,9 +680,10 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                             {/* Local PiP */}
                             <div className="absolute bottom-16 right-4 w-44 h-32 bg-gray-950 rounded-xl overflow-hidden border-2 border-gray-700 shadow-xl z-10">
                                 <div ref={localVideoRef}
-                                    className={`w-full h-full ${hasVideo ? '' : 'hidden'}`} />
+                                    className="w-full h-full"
+                                    style={{ visibility: hasVideo ? 'visible' : 'hidden' }} />
                                 {!hasVideo && (
-                                    <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                                    <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
                                         <VideoOff className="w-7 h-7 text-gray-500" />
                                     </div>
                                 )}
