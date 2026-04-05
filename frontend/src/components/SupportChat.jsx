@@ -32,7 +32,7 @@ export default function SupportChat() {
 
         try {
             const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-            const response = await axios.post('http://localhost:3000/api/ai/support', 
+            const response = await axios.post('/api/ai/support', 
                 { message: userMsg, history: chatHistory },
                 config
             );
