@@ -87,5 +87,5 @@ services:
       - "${PORT_AI}:${PORT_AI}"
     environment:
       - PORT=3007
-      - GROQ_API_KEY=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
       - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/smart-health-ai?appName=Cluster0
+      - GEMINI_API_KEY=AIzaSyBVihJ6P8G457ueV77ip-3xtsCeXGvibUo
