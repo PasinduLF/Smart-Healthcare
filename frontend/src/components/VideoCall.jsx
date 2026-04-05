@@ -277,33 +277,58 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                 const uidSeed = user?.id ? `${role}-${user.id}` : `${role}-${appointmentId}`;
                 const fallbackUid = deriveAgoraUid(uidSeed);
 
-                const tokenRes = await fetch(`${TELE_URL}/agora/token`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(token ? { Authorization: `Bearer ${token}` } : {})
-                    },
-                    body: JSON.stringify({
-                        appointmentId,
-                        role,
-                        uid: fallbackUid
-                    })
-                });
+                const tokenPaths = ['/agora/token', '/agora-token', '/session/agora-token'];
+                let tokenPayload = null;
+                let lastStatus = null;
+                let lastTokenError = '';
 
-                if (!tokenRes.ok) {
-                    let tokenError = 'Failed to get Agora session token.';
+                for (const path of tokenPaths) {
+                    const tokenRes = await fetch(`${TELE_URL}${path}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(token ? { Authorization: `Bearer ${token}` } : {})
+                        },
+                        body: JSON.stringify({
+                            appointmentId,
+                            role,
+                            uid: fallbackUid
+                        })
+                    });
+
+                    lastStatus = tokenRes.status;
+                    let payload = null;
                     try {
-                        const payload = await tokenRes.json();
-                        if (payload?.error) {
-                            tokenError = payload.error;
-                        }
+                        payload = await tokenRes.json();
                     } catch (_) {
-                        // Ignore body parse errors and keep generic message.
+                        // Ignore body parse errors for non-JSON responses.
                     }
-                    throw new Error(tokenError);
+
+                    if (tokenRes.ok) {
+                        tokenPayload = payload;
+                        break;
+                    }
+
+                    if (payload?.error) {
+                        lastTokenError = payload.error;
+                    }
+
+                    // Keep trying aliases only for route-not-found responses.
+                    if (tokenRes.status !== 404) {
+                        break;
+                    }
                 }
 
-                const tokenPayload = await tokenRes.json();
+                if (!tokenPayload) {
+                    if (lastStatus === 404) {
+                        throw new Error(
+                            'Telemedicine service is missing Agora token endpoint. Deploy the updated telemedicine-service and ensure /agora/token is available.'
+                        );
+                    }
+
+                    throw new Error(lastTokenError || 'Failed to get Agora session token.');
+                }
+
                 const appId = tokenPayload?.appId;
                 const channelName = tokenPayload?.channelName;
                 const rtcToken = tokenPayload?.token;

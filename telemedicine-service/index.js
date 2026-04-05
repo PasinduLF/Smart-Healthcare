@@ -165,7 +165,7 @@ function toClient(s) {
 
 // ── REST ──────────────────────────────────────────────────────────────────────
 
-app.post('/agora/token', (req, res) => {
+const issueAgoraToken = (req, res) => {
     const { appointmentId, role, uid } = req.body || {};
 
     if (!appointmentId) {
@@ -204,7 +204,11 @@ app.post('/agora/token', (req, res) => {
     } catch (err) {
         return res.status(500).json({ error: err.message || 'Failed to build Agora token' });
     }
-});
+};
+
+app.post('/agora/token', issueAgoraToken);
+app.post('/agora-token', issueAgoraToken);
+app.post('/session/agora-token', issueAgoraToken);
 
 // Idempotent session bootstrap — called by frontend before socket join
 app.post('/session/init', async (req, res) => {
