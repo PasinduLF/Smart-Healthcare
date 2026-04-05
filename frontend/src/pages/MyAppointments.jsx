@@ -74,6 +74,16 @@ const buildSlotsForDay = (dayAvailability) => {
     return Array.from(new Set(slots)).sort();
 };
 
+const normalizeListPayload = (payload, candidateKeys = []) => {
+    if (Array.isArray(payload)) return payload;
+    if (payload && typeof payload === 'object') {
+        for (const key of candidateKeys) {
+            if (Array.isArray(payload[key])) return payload[key];
+        }
+    }
+    return [];
+};
+
 export default function MyAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
     const navigate = useNavigate();
@@ -93,12 +103,15 @@ export default function MyAppointments({ setActiveCall }) {
                 axios.get(`${API_BASE_URL}/api/appointments/patient/${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
             ]);
 
-            setAppointments(apptRes.data);
-            setDoctorMap(docRes.data.reduce((acc, doc) => {
+            const doctors = normalizeListPayload(docRes.data, ['doctors', 'data']);
+            const patientAppointments = normalizeListPayload(apptRes.data, ['appointments', 'data']);
+
+            setAppointments(patientAppointments);
+            setDoctorMap(doctors.reduce((acc, doc) => {
                 acc[doc._id] = doc.name;
                 return acc;
             }, {}));
-            setDoctorAvailabilityMap(docRes.data.reduce((acc, doc) => {
+            setDoctorAvailabilityMap(doctors.reduce((acc, doc) => {
                 acc[doc._id] = doc.availability;
                 return acc;
             }, {}));
@@ -127,7 +140,7 @@ export default function MyAppointments({ setActiveCall }) {
             await axios.put(`${API_BASE_URL}/api/appointments/cancel/${apptId}`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAppointments(appointments.map(a => a._id === apptId ? { ...a, status: 'cancelled' } : a));
+            setAppointments((prev) => normalizeListPayload(prev).map((a) => a._id === apptId ? { ...a, status: 'cancelled' } : a));
         } catch (err) {
             console.error(err);
             alert('Failed to cancel appointment');
@@ -140,7 +153,7 @@ export default function MyAppointments({ setActiveCall }) {
             await axios.put(`${API_BASE_URL}/api/appointments/reschedule/${apptId}`, { date: rescheduleData.date, time: rescheduleData.time }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAppointments(appointments.map(a => a._id === apptId ? { ...a, date: rescheduleData.date, time: rescheduleData.time, status: 'pending' } : a));
+            setAppointments((prev) => normalizeListPayload(prev).map((a) => a._id === apptId ? { ...a, date: rescheduleData.date, time: rescheduleData.time, status: 'pending' } : a));
             setRescheduleData({ id: null, date: '', time: '' });
             alert('Appointment rescheduled and is pending approval!');
         } catch (err) {
@@ -185,7 +198,7 @@ export default function MyAppointments({ setActiveCall }) {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (!isMounted) return;
-                setDoctorAppointments(res.data || []);
+                setDoctorAppointments(normalizeListPayload(res.data, ['appointments', 'data']));
             } catch (err) {
                 console.error('Failed to load doctor appointments', err);
             }
@@ -214,16 +227,21 @@ export default function MyAppointments({ setActiveCall }) {
         );
     }, [doctorAppointments, rescheduleData.date, rescheduleTarget]);
 
+    const activeAppointments = useMemo(
+        () => normalizeListPayload(appointments).filter((appt) => appt.status !== 'cancelled'),
+        [appointments]
+    );
+
     if (loading) return <div className="text-center py-10 text-gray-400">Loading appointments...</div>;
 
     return (
         <div>
             <h2 className="text-xl font-semibold mb-6">Upcoming Appointments</h2>
             <div className="space-y-4">
-                {appointments.filter(appt => appt.status !== 'cancelled').length === 0 ? (
+                {activeAppointments.length === 0 ? (
                     <p className="text-gray-500 text-center py-10 italic">No appointments scheduled.</p>
                 ) : (
-                    appointments.filter(appt => appt.status !== 'cancelled').map(appt => (
+                    activeAppointments.map(appt => (
                         <div key={appt._id} className="p-6 border rounded-xl bg-white/50 flex flex-col md:flex-row justify-between items-start md:items-center">
                             <div className="mb-4 md:mb-0">
                                 <h3 className="font-bold text-lg text-slate-800">{doctorMap?.[appt.doctorId] || 'Medical Specialist'}</h3>
