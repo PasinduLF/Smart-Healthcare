@@ -21,6 +21,10 @@ const transactionSchema = new mongoose.Schema({
     amount: { type: Number, required: true },
     currency: { type: String, default: 'usd' },
     description: { type: String, required: true },
+    orderId: { type: String, index: true },
+    appointmentId: { type: String },
+    patientId: { type: String },
+    doctorId: { type: String },
     status: { type: String, default: 'success' },
     date: { type: Date, default: Date.now }
 });
@@ -54,12 +58,16 @@ const syncAppointmentPayment = async (payment) => {
 const recordSuccessfulTransaction = async (payment) => {
     const description = `PayHere payment for ${payment.orderId}`;
     await Transaction.findOneAndUpdate(
-        { description },
+        { orderId: payment.orderId },
         {
             $setOnInsert: {
                 amount: Math.round(payment.amount * 100),
                 currency: payment.currency.toLowerCase(),
                 description,
+                orderId: payment.orderId,
+                appointmentId: payment.appointmentId,
+                patientId: payment.patientId,
+                doctorId: payment.doctorId,
                 status: 'success'
             }
         },
@@ -230,6 +238,19 @@ app.post('/payhere/confirm', async (req, res) => {
 app.get('/transactions', async (req, res) => {
     try {
         const txs = await Transaction.find().sort({ date: -1 });
+        res.json(txs);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/transactions/patient/:patientId', async (req, res) => {
+    try {
+        const { patientId } = req.params;
+        if (!patientId) return res.status(400).json({ error: 'Missing patientId' });
+
+        const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+        const txs = await Transaction.find({ patientId }).sort({ date: -1 }).limit(limit);
         res.json(txs);
     } catch (err) {
         res.status(500).json({ error: err.message });
