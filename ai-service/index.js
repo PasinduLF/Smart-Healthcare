@@ -32,8 +32,9 @@ const symptomCheckSchema = new mongoose.Schema({
 });
 const SymptomCheck = mongoose.model('SymptomCheck', symptomCheckSchema);
 
-// --- Gemini AI Setup ---
+// --- AI Setup ---
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 
 const DEFAULT_GEMINI_MODELS = [
     process.env.GEMINI_MODEL,
@@ -313,30 +314,60 @@ app.post('/support', async (req, res) => {
     const { message, history } = req.body;
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
-    if (!process.env.GEMINI_API_KEY) {
+    const hasGroq = !!process.env.GROQ_API_KEY;
+    const hasGemini = !!process.env.GEMINI_API_KEY;
+
+    if (!hasGroq && !hasGemini) {
         return res.json({ response: getOfflineSupportResponse(message) });
     }
 
     try {
-        const normalizedHistory = [
-            { role: 'user', parts: [{ text: "Context: " + systemKnowledgeBase }] },
-            { role: 'model', parts: [{ text: "Understood. I will help the user based on these instructions." }] },
-            ...((history || [])
-                .map(h => ({
-                    role: h.role === 'user' ? 'user' : 'model',
-                    parts: [{ text: h.text }]
-                }))
-                .filter((h, i) => i > 0 || h.role === 'user') // Ensure we follow role sequence
-            )
-        ];
+        let responseText;
 
-        const responseText = await runWithGeminiModelFallback(async (model, modelName) => {
-            const chat = model.startChat({ history: normalizedHistory });
-            const result = await chat.sendMessage(message);
-            const response = await result.response;
-            console.log(`Gemini model used for support chat: ${modelName}`);
-            return response.text();
-        });
+        if (hasGroq) {
+            // --- Groq path (primary in production) ---
+            const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+            const messages = [
+                { role: 'system', content: systemKnowledgeBase },
+                ...((history || [])
+                    .filter(h => h.text)
+                    .map(h => ({ role: h.role === 'user' ? 'user' : 'assistant', content: h.text }))
+                ),
+                { role: 'user', content: message }
+            ];
+
+            const completion = await groq.chat.completions.create({
+                messages,
+                model: 'llama3-8b-8192',
+                max_tokens: 512,
+                temperature: 0.6
+            });
+
+            responseText = completion.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
+        } else {
+            // --- Gemini fallback path ---
+            const normalizedHistory = [
+                { role: 'user', parts: [{ text: 'Context: ' + systemKnowledgeBase }] },
+                { role: 'model', parts: [{ text: 'Understood. I will help the user based on these instructions.' }] },
+                ...((history || [])
+                    .filter(h => h.text)
+                    .map(h => ({
+                        role: h.role === 'user' ? 'user' : 'model',
+                        parts: [{ text: h.text }]
+                    }))
+                    .filter((h, i) => i > 0 || h.role === 'user')
+                )
+            ];
+
+            const geminiResponse = await runWithGeminiModelFallback(async (model) => {
+                const chat = model.startChat({ history: normalizedHistory });
+                const result = await chat.sendMessage(message);
+                return (await result.response).text();
+            });
+
+            responseText = geminiResponse;
+        }
 
         res.json({ response: responseText });
     } catch (err) {
