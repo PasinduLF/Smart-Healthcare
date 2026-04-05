@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL } from '../config/api';
+import { getPaymentServiceUrl } from '../config/api';
 
 export default function PaymentSuccess() {
     const navigate = useNavigate();
@@ -17,7 +17,7 @@ export default function PaymentSuccess() {
             const orderId = new URLSearchParams(location.search).get('order_id');
             if (orderId && token) {
                 try {
-                    await axios.post(`${API_BASE_URL}/api/payments/payhere/confirm`, { orderId }, {
+                    await axios.post(getPaymentServiceUrl('/payhere/confirm'), { orderId }, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                 } catch (err) {

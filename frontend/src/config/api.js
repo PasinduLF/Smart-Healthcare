@@ -11,6 +11,8 @@ export const API_BASE_URL = safeEnvApiBaseUrl || (isLocalDevHost ? 'http://local
 export const PATIENT_SERVICE_BASE_URL = stripTrailingSlash((import.meta.env.VITE_PATIENT_SERVICE_URL || '').trim());
 export const DOCTOR_SERVICE_BASE_URL = stripTrailingSlash((import.meta.env.VITE_DOCTOR_SERVICE_URL || '').trim());
 export const AI_SERVICE_BASE_URL = stripTrailingSlash((import.meta.env.VITE_AI_SERVICE_URL || '').trim());
+export const APPOINTMENT_SERVICE_BASE_URL = stripTrailingSlash((import.meta.env.VITE_APPOINTMENT_SERVICE_URL || '').trim());
+export const PAYMENT_SERVICE_BASE_URL = stripTrailingSlash((import.meta.env.VITE_PAYMENT_SERVICE_URL || '').trim());
 export const TELE_BASE_URL = (import.meta.env.VITE_TELE_URL || '').trim();
 
 export const getGatewayUrl = (path = '') => `${API_BASE_URL}${ensureLeadingSlash(path)}`;
@@ -56,6 +58,36 @@ export const getAiServiceUrl = (path = '') => {
 	const prefixedPath = normalizedPath.startsWith('/api/ai')
 		? normalizedPath
 		: `/api/ai${normalizedPath}`;
+
+	return `${API_BASE_URL}${prefixedPath}`;
+};
+
+export const getAppointmentServiceUrl = (path = '') => {
+	const normalizedPath = ensureLeadingSlash(path);
+
+	if (APPOINTMENT_SERVICE_BASE_URL) {
+		const directAppointmentPath = normalizedPath.replace(/^\/api\/appointments(?=\/|$)/, '');
+		return `${APPOINTMENT_SERVICE_BASE_URL}${directAppointmentPath}`;
+	}
+
+	const prefixedPath = normalizedPath.startsWith('/api/appointments')
+		? normalizedPath
+		: `/api/appointments${normalizedPath}`;
+
+	return `${API_BASE_URL}${prefixedPath}`;
+};
+
+export const getPaymentServiceUrl = (path = '') => {
+	const normalizedPath = ensureLeadingSlash(path);
+
+	if (PAYMENT_SERVICE_BASE_URL) {
+		const directPaymentPath = normalizedPath.replace(/^\/api\/payments(?=\/|$)/, '');
+		return `${PAYMENT_SERVICE_BASE_URL}${directPaymentPath}`;
+	}
+
+	const prefixedPath = normalizedPath.startsWith('/api/payments')
+		? normalizedPath
+		: `/api/payments${normalizedPath}`;
 
 	return `${API_BASE_URL}${prefixedPath}`;
 };

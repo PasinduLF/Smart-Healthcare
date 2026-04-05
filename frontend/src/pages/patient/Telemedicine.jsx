@@ -3,10 +3,9 @@ import { Video, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import VideoCall from '../../components/VideoCall';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
-import { API_BASE_URL, TELE_BASE_URL } from '../../config/api';
+import { getAppointmentServiceUrl, TELE_BASE_URL } from '../../config/api';
 
 const TELE_URL = TELE_BASE_URL;
-const API_BASE = API_BASE_URL;
 
 export default function Telemedicine({ activeCall, setActiveCall }) {
     const { user, token } = useAuth();
@@ -16,7 +15,7 @@ export default function Telemedicine({ activeCall, setActiveCall }) {
 
     useEffect(() => {
         if (!user?.id || !token) return;
-        axios.get(`${API_BASE}/api/appointments/patient/${user.id}`, {
+        axios.get(getAppointmentServiceUrl(`/patient/${user.id}`), {
             headers: { Authorization: `Bearer ${token}` }
         }).then(r => {
             // only accepted appointments that could have had a session

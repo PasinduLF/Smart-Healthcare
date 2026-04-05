@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { getAppointmentServiceUrl } from '../../config/api';
 
 export default function PatientAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
@@ -14,7 +15,7 @@ export default function PatientAppointments({ setActiveCall }) {
         const fetchAppointments = async () => {
             if (!user?.id) return;
             try {
-                const apptRes = await axios.get(`http://localhost:3000/api/appointments/patient/${user.id}`, { 
+                const apptRes = await axios.get(getAppointmentServiceUrl(`/patient/${user.id}`), {
                     headers: { Authorization: `Bearer ${token}` } 
                 });
                 setAppointments(apptRes.data);
@@ -29,7 +30,7 @@ export default function PatientAppointments({ setActiveCall }) {
 
     const handleCancelAppointment = async (apptId) => {
         try {
-            await axios.put(`http://localhost:3000/api/appointments/cancel/${apptId}`, {}, {
+            await axios.put(getAppointmentServiceUrl(`/cancel/${apptId}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAppointments(appointments.map(a => a._id === apptId ? { ...a, status: 'cancelled' } : a));
@@ -42,7 +43,7 @@ export default function PatientAppointments({ setActiveCall }) {
     const handleReschedule = async (apptId) => {
         if (!rescheduleData.date || !rescheduleData.time) return alert("Please select date and time");
         try {
-            await axios.put(`http://localhost:3000/api/appointments/reschedule/${apptId}`, 
+            await axios.put(getAppointmentServiceUrl(`/reschedule/${apptId}`),
                 { date: rescheduleData.date, time: rescheduleData.time }, {
                 headers: { Authorization: `Bearer ${token}` }
             });

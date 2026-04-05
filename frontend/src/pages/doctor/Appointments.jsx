@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { getPatientServiceUrl } from '../../config/api';
+import { getAppointmentServiceUrl } from '../../config/api';
 import { useNavigate } from 'react-router-dom';
 import { Activity, X } from 'lucide-react';
 
@@ -46,7 +47,7 @@ export default function DoctorAppointments({ setActiveCall }) {
         const fetchAppointments = async () => {
             if (!user?.id) return;
             try {
-                const res = await axios.get(`http://localhost:3000/api/appointments/doctor/${user.id}`, { 
+                const res = await axios.get(getAppointmentServiceUrl(`/doctor/${user.id}`), {
                     headers: { Authorization: `Bearer ${token}` } 
                 });
                 setAppointments(res.data);
@@ -73,7 +74,7 @@ export default function DoctorAppointments({ setActiveCall }) {
 
     const handleAccept = async (id) => {
         try {
-            await axios.put(`http://localhost:3000/api/appointments/accept/${id}`, {}, {
+            await axios.put(getAppointmentServiceUrl(`/accept/${id}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAppointments(appointments.map(a => a._id === id ? { ...a, status: 'accepted' } : a));
@@ -85,7 +86,7 @@ export default function DoctorAppointments({ setActiveCall }) {
 
     const handleReject = async (id) => {
         try {
-            await axios.put(`http://localhost:3000/api/appointments/reject/${id}`, {}, {
+            await axios.put(getAppointmentServiceUrl(`/reject/${id}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAppointments(appointments.map(a => a._id === id ? { ...a, status: 'rejected' } : a));

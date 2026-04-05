@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
-import { getDoctorServiceUrl, getGatewayUrl, getPatientServiceUrl } from '../../config/api';
+import { getAppointmentServiceUrl, getDoctorServiceUrl, getPatientServiceUrl } from '../../config/api';
 import { Users, ShieldCheck, Activity, Search } from 'lucide-react';
 
 export default function UsersOverview() {
@@ -17,7 +17,7 @@ export default function UsersOverview() {
                 const [pRes, dRes, aRes, pendRes] = await Promise.all([
                     axios.get(getPatientServiceUrl('/stats'), config),
                     axios.get(getDoctorServiceUrl('/stats'), config),
-                    axios.get(getGatewayUrl('/api/appointments/stats'), config),
+                    axios.get(getAppointmentServiceUrl('/stats'), config),
                     axios.get(getDoctorServiceUrl('/pending'), config)
                 ]);
                 

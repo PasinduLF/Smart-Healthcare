@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL, getDoctorServiceUrl } from '../config/api';
+import { getAppointmentServiceUrl, getDoctorServiceUrl } from '../config/api';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const getJoinState = () => ({ canJoin: true, label: 'Join Call' });
@@ -100,7 +100,7 @@ export default function MyAppointments({ setActiveCall }) {
         try {
             const [docRes, apptRes] = await Promise.all([
                 axios.get(getDoctorServiceUrl('/list'), { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_BASE_URL}/api/appointments/patient/${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
+                axios.get(getAppointmentServiceUrl(`/patient/${user.id}`), { headers: { Authorization: `Bearer ${token}` } })
             ]);
 
             const doctors = normalizeListPayload(docRes.data, ['doctors', 'data']);
@@ -137,7 +137,7 @@ export default function MyAppointments({ setActiveCall }) {
 
     const handleCancelAppointment = async (apptId) => {
         try {
-            await axios.put(`${API_BASE_URL}/api/appointments/cancel/${apptId}`, {}, {
+            await axios.put(getAppointmentServiceUrl(`/cancel/${apptId}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAppointments((prev) => normalizeListPayload(prev).map((a) => a._id === apptId ? { ...a, status: 'cancelled' } : a));
@@ -150,7 +150,7 @@ export default function MyAppointments({ setActiveCall }) {
     const handleReschedule = async (apptId) => {
         if (!rescheduleData.date || !rescheduleData.time) return alert("Please select date and time");
         try {
-            await axios.put(`${API_BASE_URL}/api/appointments/reschedule/${apptId}`, { date: rescheduleData.date, time: rescheduleData.time }, {
+            await axios.put(getAppointmentServiceUrl(`/reschedule/${apptId}`), { date: rescheduleData.date, time: rescheduleData.time }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAppointments((prev) => normalizeListPayload(prev).map((a) => a._id === apptId ? { ...a, date: rescheduleData.date, time: rescheduleData.time, status: 'pending' } : a));
@@ -194,7 +194,7 @@ export default function MyAppointments({ setActiveCall }) {
         let isMounted = true;
         const fetchDoctorAppointments = async () => {
             try {
-                const res = await axios.get(`${API_BASE_URL}/api/appointments/doctor/${rescheduleTarget.doctorId}`, {
+                const res = await axios.get(getAppointmentServiceUrl(`/doctor/${rescheduleTarget.doctorId}`), {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (!isMounted) return;
