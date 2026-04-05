@@ -101,6 +101,19 @@ const formatSelectedDateLabel = (dateStr) => {
 	});
 };
 
+const isFutureSlot = (dateStr, timeStr, now = new Date()) => {
+	if (!dateStr || !timeStr) return false;
+	const normalizedTime = normalizeTime(timeStr);
+	const slotMinutes = timeToMinutes(normalizedTime);
+	if (slotMinutes === null) return false;
+
+	const slotDateTime = new Date(`${dateStr}T00:00:00`);
+	if (Number.isNaN(slotDateTime.getTime())) return false;
+	slotDateTime.setMinutes(slotDateTime.getMinutes() + slotMinutes);
+
+	return slotDateTime.getTime() > now.getTime();
+};
+
 export default function BookAppointment() {
 	const { doctorId } = useParams();
 	const navigate = useNavigate();
@@ -186,16 +199,9 @@ export default function BookAppointment() {
 
 	const pastSlots = useMemo(() => {
 		if (!selectedDate) return new Set();
-		const todayValue = toDateInputValue(new Date());
-		if (selectedDate !== todayValue) return new Set();
-
 		const now = new Date();
-		const currentMinutes = (now.getHours() * 60) + now.getMinutes();
 		return new Set(
-			availableSlots.filter((slot) => {
-				const slotMinutes = timeToMinutes(slot);
-				return slotMinutes !== null && slotMinutes <= currentMinutes;
-			})
+			availableSlots.filter((slot) => !isFutureSlot(selectedDate, slot, now))
 		);
 	}, [availableSlots, selectedDate]);
 
@@ -214,19 +220,7 @@ export default function BookAppointment() {
 	const handleRequestAppointment = async () => {
 		if (!user || !token) return alert('Please login first');
 		if (!selectedDate || !selectedTime) return alert('Please select a date and time');
-
-		const todayValue = toDateInputValue(new Date());
-		if (selectedDate < todayValue) return alert('Please select today or a future date.');
-		if (selectedDate === todayValue) {
-			const selectedMinutes = timeToMinutes(selectedTime);
-			if (selectedMinutes !== null) {
-				const now = new Date();
-				const currentMinutes = (now.getHours() * 60) + now.getMinutes();
-				if (selectedMinutes <= currentMinutes) {
-					return alert('Please select a future time slot.');
-				}
-			}
-		}
+		if (!isFutureSlot(selectedDate, selectedTime)) return alert('Please select a future time slot.');
 
 		setSaving(true);
 		try {
