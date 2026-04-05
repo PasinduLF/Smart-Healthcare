@@ -82,6 +82,25 @@ const normalizeListPayload = (payload, candidateKeys = []) => {
 	return [];
 };
 
+const toDateInputValue = (date) => {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+};
+
+const formatSelectedDateLabel = (dateStr) => {
+	if (!dateStr) return '';
+	const date = new Date(`${dateStr}T00:00:00`);
+	if (Number.isNaN(date.getTime())) return dateStr;
+	return date.toLocaleDateString('en-US', {
+		weekday: 'long',
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric'
+	});
+};
+
 export default function BookAppointment() {
 	const { doctorId } = useParams();
 	const navigate = useNavigate();
@@ -94,6 +113,28 @@ export default function BookAppointment() {
 	const [selectedTime, setSelectedTime] = useState('');
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
+
+	const quickDateOptions = useMemo(() => {
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		const options = [];
+
+		for (let offset = 0; offset < 7; offset += 1) {
+			const date = new Date(today);
+			date.setDate(today.getDate() + offset);
+			options.push({
+				value: toDateInputValue(date),
+				weekday: date.toLocaleDateString('en-US', { weekday: 'short' }),
+				day: date.toLocaleDateString('en-US', { day: '2-digit' }),
+				month: date.toLocaleDateString('en-US', { month: 'short' }),
+				isToday: offset === 0
+			});
+		}
+
+		return options;
+	}, []);
+
+	const minBookingDate = quickDateOptions[0]?.value || '';
 
 	useEffect(() => {
 		let isMounted = true;
@@ -195,16 +236,52 @@ export default function BookAppointment() {
 							<label className="text-sm font-medium text-gray-700 flex items-center gap-2">
 								<Calendar className="w-4 h-4" /> Select Date
 							</label>
-							<input
-								type="date"
-								className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-								value={selectedDate}
-								min={new Date().toISOString().split('T')[0]}
-								onChange={(e) => {
-									setSelectedDate(e.target.value);
-									setSelectedTime('');
-								}}
-							/>
+							<div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-cyan-50 p-4 shadow-sm space-y-3">
+								<p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-500">Pick from upcoming days</p>
+								<div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-2">
+									{quickDateOptions.map((option) => {
+										const isSelected = selectedDate === option.value;
+										return (
+											<button
+												key={option.value}
+												type="button"
+												onClick={() => {
+													setSelectedDate(option.value);
+													setSelectedTime('');
+												}}
+												className={`rounded-xl border px-3 py-2 text-left transition ${isSelected
+													? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-100 scale-[1.02]'
+													: 'bg-white/90 text-slate-700 border-blue-100 hover:border-blue-300 hover:bg-white'}`}
+											>
+												<p className={`text-[11px] font-semibold uppercase tracking-wide ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>{option.weekday}</p>
+												<p className="text-lg font-black leading-tight">{option.day}</p>
+												<p className={`text-[11px] font-semibold uppercase tracking-wide ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>{option.month}</p>
+												{option.isToday && <p className={`mt-1 text-[10px] font-bold uppercase tracking-wide ${isSelected ? 'text-blue-100' : 'text-blue-600'}`}>Today</p>}
+											</button>
+										);
+									})}
+								</div>
+
+								<div className="pt-2 border-t border-blue-100/80 space-y-1.5">
+									<label className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Or choose another date</label>
+									<input
+										type="date"
+										className="w-full px-4 py-3 border border-blue-100 rounded-xl bg-white text-slate-700 outline-none transition focus:ring-2 focus:ring-blue-500 focus:border-blue-400"
+										value={selectedDate}
+										min={minBookingDate}
+										onChange={(e) => {
+											setSelectedDate(e.target.value);
+											setSelectedTime('');
+										}}
+									/>
+								</div>
+
+								{selectedDate && (
+									<p className="text-xs text-blue-700 font-medium">
+										Selected: <span className="font-bold">{formatSelectedDateLabel(selectedDate)}</span>
+									</p>
+								)}
+							</div>
 						</div>
 
 						<div className="space-y-2">
