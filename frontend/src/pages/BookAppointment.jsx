@@ -184,9 +184,50 @@ export default function BookAppointment() {
 		);
 	}, [appointments, selectedDate]);
 
+	const pastSlots = useMemo(() => {
+		if (!selectedDate) return new Set();
+		const todayValue = toDateInputValue(new Date());
+		if (selectedDate !== todayValue) return new Set();
+
+		const now = new Date();
+		const currentMinutes = (now.getHours() * 60) + now.getMinutes();
+		return new Set(
+			availableSlots.filter((slot) => {
+				const slotMinutes = timeToMinutes(slot);
+				return slotMinutes !== null && slotMinutes <= currentMinutes;
+			})
+		);
+	}, [availableSlots, selectedDate]);
+
+	const hasSelectableSlots = useMemo(
+		() => availableSlots.some((slot) => !bookedSlots.has(slot) && !pastSlots.has(slot)),
+		[availableSlots, bookedSlots, pastSlots]
+	);
+
+	useEffect(() => {
+		if (!selectedTime) return;
+		if (bookedSlots.has(selectedTime) || pastSlots.has(selectedTime)) {
+			setSelectedTime('');
+		}
+	}, [bookedSlots, pastSlots, selectedTime]);
+
 	const handleRequestAppointment = async () => {
 		if (!user || !token) return alert('Please login first');
 		if (!selectedDate || !selectedTime) return alert('Please select a date and time');
+
+		const todayValue = toDateInputValue(new Date());
+		if (selectedDate < todayValue) return alert('Please select today or a future date.');
+		if (selectedDate === todayValue) {
+			const selectedMinutes = timeToMinutes(selectedTime);
+			if (selectedMinutes !== null) {
+				const now = new Date();
+				const currentMinutes = (now.getHours() * 60) + now.getMinutes();
+				if (selectedMinutes <= currentMinutes) {
+					return alert('Please select a future time slot.');
+				}
+			}
+		}
+
 		setSaving(true);
 		try {
 			await axios.post(getAppointmentServiceUrl('/book'), {
@@ -290,27 +331,36 @@ export default function BookAppointment() {
 							</label>
 							{selectedDate ? (
 								availableSlots.length > 0 ? (
-									<div className="flex flex-wrap gap-2">
-										{availableSlots.map((slot) => {
-											const isBooked = bookedSlots.has(slot);
-											return (
-											<button
-												key={slot}
-												type="button"
+									<>
+										<div className="flex flex-wrap gap-2">
+											{availableSlots.map((slot) => {
+												const isBooked = bookedSlots.has(slot);
+												const isPast = pastSlots.has(slot);
+												const isUnavailable = isBooked || isPast;
+												return (
+												<button
+													key={slot}
+													type="button"
 													onClick={() => setSelectedTime(slot)}
-													disabled={isBooked}
-													className={`px-3 py-2 rounded-lg text-sm border transition ${isBooked
-														? 'bg-red-50 text-red-600 border-red-200 cursor-not-allowed'
+													disabled={isUnavailable}
+													className={`px-3 py-2 rounded-lg text-sm border transition ${isUnavailable
+														? isPast
+															? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+															: 'bg-red-50 text-red-600 border-red-200 cursor-not-allowed'
 														: selectedTime === slot
 															? 'bg-green-600 text-white border-green-600'
 															: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200'}
 													`}
-											>
-												{slot} - {minutesToTime(timeToMinutes(slot) + 30)}
-											</button>
-											);
-										})}
-									</div>
+												>
+													{slot} - {minutesToTime(timeToMinutes(slot) + 30)}{isPast ? ' - Passed' : isBooked ? ' - Booked' : ''}
+												</button>
+												);
+											})}
+										</div>
+										{!hasSelectableSlots && (
+											<p className="text-xs text-amber-600">No future time slots are currently available for this date.</p>
+										)}
+									</>
 								) : (
 									<p className="text-sm text-gray-500">No available slots for this day.</p>
 								)
