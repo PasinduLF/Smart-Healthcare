@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
-import { getPatientServiceUrl } from '../../config/api';
+import { getAiServiceUrl, getPatientServiceUrl } from '../../config/api';
 import { Brain, LogOut } from 'lucide-react';
 
 export default function AIAnalyzer() {
@@ -31,7 +31,7 @@ export default function AIAnalyzer() {
 
     const fetchSymptomHistory = async () => {
         try {
-            const res = await axios.get(`http://localhost:3000/api/ai/history/${user.id}`, {
+            const res = await axios.get(getAiServiceUrl(`/history/${user.id}`), {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setSymptomHistory(res.data);
@@ -46,7 +46,7 @@ export default function AIAnalyzer() {
 
         setAiLoading(true);
         try {
-            const res = await axios.post(`http://localhost:3000/api/ai/check-symptoms`, {
+            const res = await axios.post(getAiServiceUrl('/check-symptoms'), {
                 symptoms,
                 patientProfile: healthProfile,
                 patientId: user?.id

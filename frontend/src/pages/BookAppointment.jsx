@@ -3,7 +3,7 @@ import { Calendar, Clock, ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, getDoctorServiceUrl } from '../config/api';
 
 const dayKeyFromDate = (dateStr) => {
 	if (!dateStr) return null;
@@ -92,7 +92,7 @@ export default function BookAppointment() {
 			try {
 				const config = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
 				const [doctorRes, apptRes] = await Promise.all([
-					axios.get(`${API_BASE_URL}/api/doctors/profile/${doctorId}`, config),
+					axios.get(getDoctorServiceUrl(`/profile/${doctorId}`), config),
 					axios.get(`${API_BASE_URL}/api/appointments/doctor/${doctorId}`, config)
 				]);
 				if (!isMounted) return;

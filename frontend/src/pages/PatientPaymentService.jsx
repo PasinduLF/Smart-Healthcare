@@ -3,7 +3,7 @@ import { ArrowLeft, CreditCard } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, getDoctorServiceUrl } from '../config/api';
 
 const normalizeTime = (value) => {
 	if (!value) return '';
@@ -53,7 +53,7 @@ export default function PatientPaymentService() {
 		const loadFee = async () => {
 			if (!doctorId) return;
 			try {
-				const res = await axios.get(`${API_BASE_URL}/api/doctors/profile/${doctorId}`, {
+				const res = await axios.get(getDoctorServiceUrl(`/profile/${doctorId}`), {
 					headers: token ? { Authorization: `Bearer ${token}` } : undefined
 				});
 				const fee = Number(res.data?.consultationFee) || 0;

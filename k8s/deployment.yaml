@@ -27,7 +27,7 @@ spec:
         - name: PATIENT_SERVICE_URL
           value: "https://smart-healthcare-lckn.onrender.com"
         - name: DOCTOR_SERVICE_URL
-          value: "http://doctor-service:3002"
+          value: "https://smart-healthcare-doctor-service.onrender.com"
         - name: APPOINTMENT_SERVICE_URL
           value: "http://appointment-service:3003"
         - name: TELEMEDICINE_SERVICE_URL
@@ -37,7 +37,7 @@ spec:
         - name: NOTIFICATION_SERVICE_URL
           value: "http://notification-service:3006"
         - name: AI_SERVICE_URL
-          value: "http://ai-service:3007"
+          value: "https://smart-healthcare-1-morq.onrender.com"
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
-import { getGatewayUrl, getPatientServiceUrl } from '../config/api';
+import { getDoctorServiceUrl, getPatientServiceUrl } from '../config/api';
 
 const AuthContext = createContext(null);
 
@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
     const login = async (email, password, role) => {
         try {
             const endpoint = role === 'doctor'
-                ? getGatewayUrl('/api/doctors/login')
+                ? getDoctorServiceUrl('/login')
                 : getPatientServiceUrl('/login');
 
             const response = await axios.post(endpoint, { email, password });
@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }) => {
     const register = async (userData, role) => {
         try {
             const endpoint = role === 'doctor'
-                ? getGatewayUrl('/api/doctors/register')
+                ? getDoctorServiceUrl('/register')
                 : getPatientServiceUrl('/register');
 
             const response = await axios.post(endpoint, userData);

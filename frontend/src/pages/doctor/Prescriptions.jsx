@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { getDoctorServiceUrl } from '../../config/api';
 import { Pill, UserPlus } from 'lucide-react';
 
 export default function DoctorPrescriptions() {
@@ -13,7 +14,7 @@ export default function DoctorPrescriptions() {
         const fetchPrescriptions = async () => {
             if (!user?.id) return;
             try {
-                const res = await axios.get(`http://localhost:3000/api/doctors/prescriptions/doctor/${user.id}`, { 
+                const res = await axios.get(getDoctorServiceUrl(`/prescriptions/doctor/${user.id}`), {
                     headers: { Authorization: `Bearer ${token}` } 
                 });
                 setPrescriptions(res.data);
@@ -29,7 +30,7 @@ export default function DoctorPrescriptions() {
     const handleIssuePrescription = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post(`http://localhost:3000/api/doctors/prescriptions`, {
+            const res = await axios.post(getDoctorServiceUrl('/prescriptions'), {
                 doctorId: user.id,
                 patientId: newScript.patientId,
                 medication: newScript.medication,

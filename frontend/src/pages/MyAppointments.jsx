@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, getDoctorServiceUrl } from '../config/api';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const getJoinState = () => ({ canJoin: true, label: 'Join Call' });
@@ -89,7 +89,7 @@ export default function MyAppointments({ setActiveCall }) {
         if (!user?.id || !token) return;
         try {
             const [docRes, apptRes] = await Promise.all([
-                axios.get(`${API_BASE_URL}/api/doctors/list`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(getDoctorServiceUrl('/list'), { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_BASE_URL}/api/appointments/patient/${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
             ]);
 
