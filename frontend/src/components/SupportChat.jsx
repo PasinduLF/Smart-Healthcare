@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Bot, User, Loader2, Sparkles } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { getAiServiceUrl } from '../config/api';
 
 export default function SupportChat() {
     const { token, user } = useAuth();
@@ -32,7 +33,7 @@ export default function SupportChat() {
 
         try {
             const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-            const response = await axios.post('/api/ai/support', 
+            const response = await axios.post(getAiServiceUrl('/support'), 
                 { message: userMsg, history: chatHistory },
                 config
             );
