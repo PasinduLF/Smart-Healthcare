@@ -442,9 +442,7 @@ export default function MyAppointments({ setActiveCall }) {
                                                 {isModifiable(appt.date) && (
                                                     <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition text-sm font-bold border border-slate-100">Reschedule</button>
                                                 )}
-                                                {isModifiable(appt.date) && (
-                                                    <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-bold border border-red-100">Cancel</button>
-                                                )}
+                                                <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-bold border border-red-100">Cancel</button>
                                                    {appt.status === 'accepted' && appt.paymentStatus !== 'paid' && (
                                                        <button onClick={() => handlePayNow(appt)} className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition text-sm font-bold shadow-lg shadow-slate-200">Pay Now</button>
                                                    )}
