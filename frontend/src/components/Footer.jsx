@@ -40,7 +40,7 @@ export default function Footer() {
                             <li><Link to="/services" className="hover:text-indigo-400 transition">Services</Link></li>
                             <li><Link to="/about" className="hover:text-indigo-400 transition">About Us</Link></li>
                             {user ? (
-                                <li><Link to={user.role === 'patient' ? '/patient/profile' : '/doctor/schedule'} className="hover:text-indigo-400 transition font-bold text-white">My Account Profile</Link></li>
+                                <li><Link to={user.role === 'patient' ? '/patient/profile' : user.role === 'doctor' ? '/doctor/profile' : '/admin/profile'} className="hover:text-indigo-400 transition font-bold text-white">My Account Profile</Link></li>
                             ) : (
                                 <li><Link to="/login" className="hover:text-indigo-400 transition">Health Portal (Login)</Link></li>
                             )}

@@ -1,11 +1,67 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const multer = require('multer');
+const { v2: cloudinary } = require('cloudinary');
 
 const mongoose = require('mongoose');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
+
+const cloudinaryConfigured = Boolean(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET
+);
+
+if (cloudinaryConfigured) {
+    cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET
+    });
+}
+
+const avatarUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype && file.mimetype.startsWith('image/')) return cb(null, true);
+        cb(new Error('Only image files are allowed'));
+    }
+});
+
+const profileImageUpload = avatarUpload.any();
+
+const getUploadedProfileImage = (req) => {
+    if (req.file) return req.file;
+    if (Array.isArray(req.files) && req.files.length > 0) return req.files[0];
+    if (req.files?.avatar?.[0]) return req.files.avatar[0];
+    if (req.files?.profileImage?.[0]) return req.files.profileImage[0];
+    if (req.files?.image?.[0]) return req.files.image[0];
+    return null;
+};
+
+const uploadProfileImageToCloudinary = (file, folder) => new Promise((resolve, reject) => {
+    if (!cloudinaryConfigured) {
+        reject(new Error('Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET.'));
+        return;
+    }
+
+    const stream = cloudinary.uploader.upload_stream(
+        {
+            folder,
+            resource_type: 'image'
+        },
+        (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+        }
+    );
+
+    stream.end(file.buffer);
+});
 
 app.use(cors());
 app.use(express.json());
@@ -26,6 +82,10 @@ const doctorSchema = new mongoose.Schema({
     specialty: { type: String, required: true },
     experience: { type: Number, default: 0 },
     consultationFee: { type: Number, default: 0 },
+    bio: { type: String, default: '' },
+    languages: [{ type: String }],
+    clinicLocation: { type: String, default: '' },
+    avatarUrl: { type: String, default: '' },
     availability: { type: Array, default: [] },
     verified: { type: Boolean, default: false },
     maxPatients: { type: Number, default: 10 },
@@ -125,6 +185,19 @@ const parseAvailability = (value) => {
     return [];
 };
 
+const parseLanguages = (value) => {
+    if (Array.isArray(value)) {
+        return value.map((item) => String(item).trim()).filter(Boolean);
+    }
+    if (typeof value === 'string') {
+        return value
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean);
+    }
+    return [];
+};
+
 app.get('/profile/:id', async (req, res) => {
     try {
         const doctor = await Doctor.findById(req.params.id).select('-password');
@@ -137,7 +210,7 @@ app.get('/profile/:id', async (req, res) => {
 
 app.put('/profile/:id', async (req, res) => {
     try {
-        const { name, specialty, specialization, experience, availability, consultationFee } = req.body;
+        const { name, specialty, specialization, experience, availability, consultationFee, bio, languages, clinicLocation } = req.body;
 
         const update = {};
         if (typeof name === 'string') update.name = name;
@@ -150,12 +223,63 @@ app.put('/profile/:id', async (req, res) => {
         const parsedFee = Number.isFinite(Number(consultationFee)) ? Number(consultationFee) : undefined;
         if (parsedFee !== undefined) update.consultationFee = parsedFee;
 
+        if (typeof bio === 'string') update.bio = bio;
+        if (typeof clinicLocation === 'string') update.clinicLocation = clinicLocation;
+        if (languages !== undefined) update.languages = parseLanguages(languages);
+
         if (availability !== undefined) update.availability = parseAvailability(availability);
 
         const doctor = await Doctor.findByIdAndUpdate(req.params.id, update, { new: true }).select('-password');
         if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
 
         res.json(doctor);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/profile/:id/avatar', profileImageUpload, async (req, res) => {
+    try {
+        const uploadedImage = getUploadedProfileImage(req);
+        if (!uploadedImage) return res.status(400).json({ error: 'Profile image is required' });
+
+        const cloudinaryResult = await uploadProfileImageToCloudinary(uploadedImage, 'smart-healthcare/doctor-avatars');
+        const avatarUrl = cloudinaryResult.secure_url;
+
+        const doctor = await Doctor.findByIdAndUpdate(req.params.id, { avatarUrl }, { new: true }).select('-password');
+        if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
+        res.json({ message: 'Avatar updated', avatarUrl, doctor });
+    } catch (err) {
+        const status = err.message && err.message.includes('Cloudinary is not configured') ? 503 : 500;
+        res.status(status).json({ error: err.message });
+    }
+});
+
+app.put('/change-password/:id', async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'Current and new password are required' });
+        }
+
+        if (String(newPassword).length < 8) {
+            return res.status(400).json({ error: 'New password must be at least 8 characters long' });
+        }
+
+        if (currentPassword === newPassword) {
+            return res.status(400).json({ error: 'New password must be different from current password' });
+        }
+
+        const doctor = await Doctor.findById(req.params.id);
+        if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
+
+        const isMatch = await bcrypt.compare(currentPassword, doctor.password);
+        if (!isMatch) return res.status(400).json({ error: 'Current password is incorrect' });
+
+        doctor.password = await bcrypt.hash(newPassword, 10);
+        await doctor.save();
+
+        res.json({ message: 'Password updated successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -231,6 +355,19 @@ app.get('/prescriptions/doctor/:doctorId', async (req, res) => {
 
 app.get('/health', (req, res) => {
     res.json({ status: 'Doctor Service is running' });
+});
+
+app.use((err, req, res, next) => {
+    if (err && err.message && (err.message.includes('Only image files are allowed') || err.message.includes('File too large'))) {
+        return res.status(400).json({ error: err.message });
+    }
+    if (err && err.name === 'MulterError') {
+        return res.status(400).json({ error: err.message });
+    }
+    if (err) {
+        return res.status(500).json({ error: err.message || 'Server error' });
+    }
+    next();
 });
 
 app.listen(PORT, () => console.log(`Doctor Service listening on port ${PORT}`));

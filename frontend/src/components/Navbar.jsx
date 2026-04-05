@@ -37,6 +37,7 @@ export default function Navbar() {
     ];
 
     const doctorLinks = [
+        { name: 'My Profile', path: '/doctor/profile' },
         { name: 'Appointments', path: '/doctor/appointments' },
         { name: 'My Schedule', path: '/doctor/schedule' },
         { name: 'Prescriptions', path: '/doctor/prescriptions' },
@@ -44,6 +45,7 @@ export default function Navbar() {
 
     const adminLinks = [
         { name: 'Overview', path: '/admin' },
+        { name: 'My Profile', path: '/admin/profile' },
         { name: 'Users', path: '/admin/users' },
         { name: 'Revenue', path: '/admin/payments' },
         { name: 'Settings', path: '/admin/settings' },
@@ -102,7 +104,7 @@ export default function Navbar() {
                     {user ? (
                         <div className="flex items-center gap-3">
                             <Link
-                                to={user.role === 'patient' ? '/patient/profile' : user.role === 'doctor' ? '/doctor/schedule' : '/admin/settings'}
+                                to={user.role === 'patient' ? '/patient/profile' : user.role === 'doctor' ? '/doctor/profile' : '/admin/profile'}
                                 className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-100 transition-all border border-slate-100"
                             >
                                 <User className="w-4 h-4" />

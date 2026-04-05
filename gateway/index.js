@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const https = require('https');
+const http = require('http');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const jwt = require('jsonwebtoken');
 
@@ -47,21 +49,25 @@ app.get('/health', (req, res) => {
 app.get('/api/patients/stats', authenticateToken, requireRole(['admin']), createProxyMiddleware({
     target: process.env.PATIENT_SERVICE_URL || 'https://smart-healthcare-lckn.onrender.com',
     changeOrigin: true,
+    pathRewrite: () => '/stats'
 }));
 
 app.get('/api/doctors/stats', authenticateToken, requireRole(['admin']), createProxyMiddleware({
     target: process.env.DOCTOR_SERVICE_URL || 'https://smart-healthcare-doctor-service.onrender.com',
     changeOrigin: true,
+    pathRewrite: () => '/stats'
 }));
 
 app.get('/api/doctors/pending', authenticateToken, requireRole(['admin']), createProxyMiddleware({
     target: process.env.DOCTOR_SERVICE_URL || 'https://smart-healthcare-doctor-service.onrender.com',
     changeOrigin: true,
+    pathRewrite: () => '/pending'
 }));
 
 app.put('/api/doctors/verify/:id', authenticateToken, requireRole(['admin']), createProxyMiddleware({
     target: process.env.DOCTOR_SERVICE_URL || 'https://smart-healthcare-doctor-service.onrender.com',
     changeOrigin: true,
+    pathRewrite: { '^/api/doctors': '' }
 }));
 
 // Patient Service (Public routes like login/register)
@@ -106,7 +112,40 @@ app.use('/api/notifications', createProxyMiddleware({
     changeOrigin: true,
 }));
 
-// AI Symptom Checker Service
+// AI Support — direct handler (avoids HPM path-rewrite issues)
+app.post('/api/ai/support', (req, res) => {
+    const aiBase = (process.env.AI_SERVICE_URL || 'http://localhost:3007').replace(/\/+$/, '');
+    const targetUrl = new URL('/support', aiBase);
+    const isHttps = targetUrl.protocol === 'https:';
+    const lib = isHttps ? https : http;
+
+    const body = JSON.stringify(req.body);
+    const options = {
+        hostname: targetUrl.hostname,
+        port: targetUrl.port || (isHttps ? 443 : 80),
+        path: targetUrl.pathname,
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body)
+        }
+    };
+
+    const proxyReq = lib.request(options, (proxyRes) => {
+        res.status(proxyRes.statusCode);
+        Object.entries(proxyRes.headers).forEach(([k, v]) => res.setHeader(k, v));
+        proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', (err) => {
+        console.error('AI support proxy error:', err.message);
+        res.status(502).json({ error: 'AI service unavailable' });
+    });
+
+    proxyReq.write(body);
+    proxyReq.end();
+});
+
 app.use('/api/ai', authenticateToken, createProxyMiddleware({
     target: process.env.AI_SERVICE_URL || 'https://smart-healthcare-1-morq.onrender.com',
     changeOrigin: true,

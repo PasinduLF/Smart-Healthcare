@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 // Components
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import SupportChat from './components/SupportChat';
 
 // Pages
 import Home from './pages/Home';
@@ -19,13 +20,13 @@ import SearchDoctors from './pages/patient/SearchDoctors';
 import AIAnalyzer from './pages/patient/AIAnalyzer';
 import HealthProfile from './pages/patient/HealthProfile';
 import MedicalReports from './pages/patient/MedicalReports';
-import Profile from './pages/patient/Profile';
 import Prescriptions from './pages/patient/Prescriptions';
 import Telemedicine from './pages/patient/Telemedicine';
 import BookAppointment from './pages/BookAppointment';
 import MyAppointments from './pages/MyAppointments';
 import PatientPaymentService from './pages/PatientPaymentService';
 import PaymentSuccess from './pages/PaymentSuccess';
+import MyProfile from './pages/MyProfile';
 
 // Doctor Pages
 import DoctorSchedule from './pages/doctor/DoctorSchedule';
@@ -63,6 +64,7 @@ function AppContent() {
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
             <Navbar />
+            <SupportChat />
 
             <main className="flex-grow pt-20">
                 <Routes>
@@ -88,7 +90,7 @@ function AppContent() {
                         <Route path="payment-success" element={<PaymentSuccess />} />
                         <Route path="appointments" element={<MyAppointments setActiveCall={setActiveCall} />} />
                         <Route path="telemedicine" element={<Telemedicine activeCall={activeCall} setActiveCall={setActiveCall} />} />
-                        <Route path="profile" element={<Profile />} />
+                        <Route path="profile" element={<MyProfile />} />
                         <Route path="health" element={<HealthProfile />} />
                         <Route path="prescriptions" element={<Prescriptions />} />
                         <Route path="reports" element={<MedicalReports />} />
@@ -104,6 +106,7 @@ function AppContent() {
                         </ProtectedRoute>
                     }>
                         <Route index element={<Navigate to="appointments" replace />} />
+                        <Route path="profile" element={<MyProfile />} />
                         <Route path="schedule" element={<DoctorSchedule />} />
                         <Route path="appointments" element={<DoctorAppointments setActiveCall={setActiveCall} />} />
                         <Route path="telemedicine" element={<DoctorTelemedicine activeCall={activeCall} setActiveCall={setActiveCall} />} />
@@ -119,6 +122,7 @@ function AppContent() {
                         </ProtectedRoute>
                     }>
                         <Route index element={<AdminDashboard />} />
+                        <Route path="profile" element={<MyProfile />} />
                         <Route path="users" element={<UsersOverview />} />
                         <Route path="payments" element={<AdminPayments />} />
                         <Route path="settings" element={<AdminSettings />} />

@@ -4,7 +4,7 @@ services:
   gateway:
     build: ./gateway
     ports:
-      - "3000:3000"
+      - "${PORT_GATEWAY}:${PORT_GATEWAY}"
     environment:
       - PORT=3000
       - PATIENT_SERVICE_URL=https://smart-healthcare-lckn.onrender.com
@@ -23,32 +23,39 @@ services:
   patient-service:
     build: ./patient-service
     ports:
-      - "3001:3001"
+      - "${PORT_PATIENT}:${PORT_PATIENT}"
     environment:
-      - PORT=3001
-      - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
-      - JWT_SECRET=smarthealthcare_supersecret_key
+      - PORT=${PORT_PATIENT}
+      - MONGO_URI=${MONGO_URI_BASE}
+      - JWT_SECRET=${JWT_SECRET}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      
   doctor-service:
     build: ./doctor-service
     ports:
-      - "3002:3002"
+      - "${PORT_DOCTOR}:${PORT_DOCTOR}"
     environment:
-      - PORT=3002
-      - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
-      - JWT_SECRET=smarthealthcare_supersecret_key
+      - PORT=${PORT_DOCTOR}
+      - MONGO_URI=${MONGO_URI_BASE}
+      - JWT_SECRET=${JWT_SECRET}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
 
   appointment-service:
     build: ./appointment-service
     ports:
-      - "3003:3003"
+      - "${PORT_APPOINTMENT}:${PORT_APPOINTMENT}"
     environment:
-      - PORT=3003
-      - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
+      - PORT=${PORT_APPOINTMENT}
+      - MONGO_URI=${MONGO_URI_BASE}
 
   telemedicine-service:
     build: ./telemedicine-service
     ports:
-      - "3004:3004"
+      - "${PORT_TELEMEDICINE}:${PORT_TELEMEDICINE}"
     environment:
       - PORT=3004
       - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
@@ -59,7 +66,7 @@ services:
   payment-service:
     build: ./payment-service
     ports:
-      - "3005:3005"
+      - "${PORT_PAYMENT}:${PORT_PAYMENT}"
     environment:
       - PORT=3005
       - PAYHERE_MERCHANT_ID=1234712
@@ -70,15 +77,15 @@ services:
   notification-service:
     build: ./notification-service
     ports:
-      - "3006:3006"
+      - "${PORT_NOTIFICATION}:${PORT_NOTIFICATION}"
     environment:
-      - PORT=3006
+      - PORT=${PORT_NOTIFICATION}
 
   ai-service:
     build: ./ai-service
     ports:
-      - "3007:3007"
+      - "${PORT_AI}:${PORT_AI}"
     environment:
       - PORT=3007
-      - GROQ_API_KEY=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
       - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/smart-health-ai?appName=Cluster0
+      - GEMINI_API_KEY=AIzaSyBVihJ6P8G457ueV77ip-3xtsCeXGvibUo
