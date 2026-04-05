@@ -52,24 +52,75 @@ const Session = mongoose.model('TeleSession', sessionSchema);
 
 /** "2:00 PM" + "2025-03-28" → Date (treated as UTC wall-clock, no offset) */
 function parseSlotStart(dateStr, timeStr) {
-    if (!dateStr || !timeStr) return new Date();
-    const trimmed = timeStr.trim();
-    let h = 0, m = 0;
-    try {
-        if (trimmed.toUpperCase().includes('AM') || trimmed.toUpperCase().includes('PM')) {
-            const parts = trimmed.split(' ');
-            const meridiem = parts[parts.length - 1].toUpperCase();
-            [h, m] = parts[0].split(':').map(Number);
-            if (meridiem === 'PM' && h !== 12) h += 12;
-            if (meridiem === 'AM' && h === 12) h = 0;
-        } else {
-            [h, m] = trimmed.split(':').map(Number);
-        }
-        const [year, month, day] = dateStr.split('-').map(Number);
-        return new Date(Date.UTC(year, month - 1, day, h, m, 0, 0));
-    } catch (e) {
-        return new Date();
+    const now = new Date();
+
+    if (!dateStr || !timeStr) {
+        return now;
     }
+
+    const dateValue = typeof dateStr === 'string' ? dateStr.trim() : String(dateStr || '').trim();
+    let year;
+    let month;
+    let day;
+
+    const dateParts = dateValue.split('-');
+    if (dateParts.length >= 3 && /^\d{4}$/.test(dateParts[0])) {
+        year = Number(dateParts[0]);
+        month = Number(dateParts[1]);
+        day = Number(String(dateParts[2]).slice(0, 2));
+    } else {
+        const parsedDate = new Date(dateValue);
+        if (Number.isNaN(parsedDate.getTime())) {
+            return now;
+        }
+        year = parsedDate.getUTCFullYear();
+        month = parsedDate.getUTCMonth() + 1;
+        day = parsedDate.getUTCDate();
+    }
+
+    const rawTime = typeof timeStr === 'string' ? timeStr.trim() : String(timeStr || '').trim();
+    if (!rawTime) {
+        return now;
+    }
+
+    const firstSegment = rawTime.split('-')[0].trim();
+    if (!firstSegment) {
+        return now;
+    }
+
+    let hours;
+    let minutes;
+
+    const twelveHourMatch = firstSegment.match(/^(\d{1,2}):(\d{2})\s*([aApP][mM])$/);
+    if (twelveHourMatch) {
+        hours = Number(twelveHourMatch[1]);
+        minutes = Number(twelveHourMatch[2]);
+        const meridiem = twelveHourMatch[3].toUpperCase();
+
+        if (Number.isNaN(hours) || Number.isNaN(minutes) || hours < 1 || hours > 12 || minutes < 0 || minutes > 59) {
+            return now;
+        }
+
+        hours = hours % 12;
+        if (meridiem === 'PM') {
+            hours += 12;
+        }
+    } else {
+        const twentyFourHourMatch = firstSegment.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+        if (!twentyFourHourMatch) {
+            return now;
+        }
+
+        hours = Number(twentyFourHourMatch[1]);
+        minutes = Number(twentyFourHourMatch[2]);
+    }
+
+    const slotStart = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
+    if (Number.isNaN(slotStart.getTime())) {
+        return now;
+    }
+
+    return slotStart;
 }
 
 function computeRemainingMs(session) {

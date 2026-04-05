@@ -22,6 +22,40 @@ function fmt(ms) {
     return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
+function normalizeSessionTime(value) {
+    if (typeof value !== 'string') return '';
+
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+
+    const rangeSafe = trimmed.split('-')[0].trim();
+
+    // Already contains AM/PM; normalize spacing/casing.
+    const twelveHour = rangeSafe.match(/^(\d{1,2}):(\d{2})\s*([aApP][mM])$/);
+    if (twelveHour) {
+        let hours = Number(twelveHour[1]);
+        const minutes = twelveHour[2];
+        const meridiem = twelveHour[3].toUpperCase();
+        if (Number.isNaN(hours)) return trimmed;
+        hours = hours % 12;
+        if (hours === 0) hours = 12;
+        return `${hours}:${minutes} ${meridiem}`;
+    }
+
+    // Convert 24-hour HH:mm to h:mm AM/PM for backend compatibility.
+    const twentyFourHour = rangeSafe.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+    if (twentyFourHour) {
+        let hours = Number(twentyFourHour[1]);
+        const minutes = twentyFourHour[2];
+        const meridiem = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        if (hours === 0) hours = 12;
+        return `${hours}:${minutes} ${meridiem}`;
+    }
+
+    return trimmed;
+}
+
 function StatusScreen({ icon, title, subtitle, onClose, children }) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[320px] bg-gray-900 rounded-2xl text-center px-8 py-12 gap-4">
@@ -135,6 +169,8 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     // ── main effect ───────────────────────────────────────────────────────────
     useEffect(() => {
         if (!appointmentId || !role) return;
+
+        const normalizedTime = normalizeSessionTime(time);
 
         if (!TELE_URL) {
             setSessionError('Telemedicine service is not configured for this environment.');
@@ -251,7 +287,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                         patientId: role === 'patient' ? user?.id : undefined,
                         doctorId:  role === 'doctor'  ? user?.id : undefined,
                         date,
-                        time
+                        time: normalizedTime || time
                     })
                 });
 
