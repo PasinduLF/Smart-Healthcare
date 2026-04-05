@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Users, MessageSquare } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Users, MessageSquare, Maximize, Minimize } from 'lucide-react';
 import { io } from 'socket.io-client';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { useAuth } from '../context/AuthContext';
 import { getTelemedicineServiceUrl } from '../config/api';
+import { useNavigate } from 'react-router-dom';
 
 const TELE_URL = getTelemedicineServiceUrl();
 
@@ -76,6 +77,7 @@ function StatusScreen({ icon, title, subtitle, onClose, children }) {
 
 export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     const { user, token } = useAuth();
+    const navigate = useNavigate();
     const role = user?.role;
     const name = user?.name || role;
 
@@ -87,6 +89,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     const localTracksRef = useRef({ audioTrack: null, videoTrack: null });
     const tickRef        = useRef(null);
     const chatEndRef     = useRef(null);
+    const containerRef   = useRef(null);
 
     // media
     const [hasVideo,     setHasVideo]     = useState(true);
@@ -100,12 +103,14 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     const [timerRunning, setTimerRunning] = useState(false);
     const [slotStart,    setSlotStart]    = useState(null);
     const [otherPresent, setOtherPresent] = useState(false);
+    const hadOtherJoinedRef = useRef(false); // true once the other person has joined at least once
     const [sessionError, setSessionError] = useState('');
 
     // chat
     const [messages,    setMessages]    = useState([]);
     const [newMessage,  setNewMessage]  = useState('');
     const [showChat,    setShowChat]    = useState(true);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     // ── local countdown ───────────────────────────────────────────────────────
     useEffect(() => {
@@ -128,6 +133,22 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             videoTrack.play(localVideoRef.current);
         }
     });
+
+    // ── fullscreen ────────────────────────────────────────────────────────────
+    useEffect(() => {
+        const handler = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', handler);
+        return () => document.removeEventListener('fullscreenchange', handler);
+    }, []);
+
+    const toggleFullscreen = () => {
+        if (!containerRef.current) return;
+        if (!document.fullscreenElement) {
+            containerRef.current.requestFullscreen().catch(() => {});
+        } else {
+            document.exitFullscreen().catch(() => {});
+        }
+    };
 
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -175,6 +196,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             setTimerRunning(!!running);
             setSlotStart(ss ? new Date(ss) : null);
             setMessages(chat || []);
+            if (running) hadOtherJoinedRef.current = true;
         });
 
         // backend sends `message` field (not `code`) — fixed here
@@ -195,6 +217,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
         socket.on('participant-joined', () => {
             if (!mounted) return;
             setOtherPresent(true);
+            hadOtherJoinedRef.current = true;
         });
 
         socket.on('participant-left', () => {
@@ -218,26 +241,23 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             setPhase('completed');
 
             const { audioTrack, videoTrack } = localTracksRef.current;
-            if (audioTrack) {
-                audioTrack.stop();
-                audioTrack.close();
-            }
-            if (videoTrack) {
-                videoTrack.stop();
-                videoTrack.close();
-            }
+            if (audioTrack) { audioTrack.stop(); audioTrack.close(); }
+            if (videoTrack) { videoTrack.stop(); videoTrack.close(); }
             localTracksRef.current = { audioTrack: null, videoTrack: null };
 
             const client = agoraClientRef.current;
             agoraClientRef.current = null;
-            if (client) {
-                client.removeAllListeners();
-                void client.leave().catch(() => {});
-            }
+            if (client) { client.removeAllListeners(); void client.leave().catch(() => {}); }
 
             clearRemoteVideo();
             setRemoteStream(false);
             setOtherPresent(false);
+
+            // Navigate after a short delay so user sees the "Call Ended" screen briefly
+            setTimeout(() => {
+                if (!mounted) return;
+                navigateAwayRef.current?.();
+            }, 2500);
         });
 
         socket.on('receive-message', msg => {
@@ -481,31 +501,27 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             console.error('Audio toggle failed:', err);
         }
     };
+    const navigateAwayRef = useRef(null);
+    const navigateAway = () => {
+        onEndCall?.();
+        if (role === 'doctor') navigate('/doctor/appointments');
+        else navigate('/patient/appointments', { state: { completedCall: appointmentId } });
+    };
+    navigateAwayRef.current = navigateAway;
+
     const handleEndCall = () => {
         const { audioTrack, videoTrack } = localTracksRef.current;
-        if (audioTrack) {
-            audioTrack.stop();
-            audioTrack.close();
-        }
-        if (videoTrack) {
-            videoTrack.stop();
-            videoTrack.close();
-        }
+        if (audioTrack) { audioTrack.stop(); audioTrack.close(); }
+        if (videoTrack) { videoTrack.stop(); videoTrack.close(); }
         localTracksRef.current = { audioTrack: null, videoTrack: null };
 
         const client = agoraClientRef.current;
         agoraClientRef.current = null;
-        if (client) {
-            client.removeAllListeners();
-            void client.leave().catch(() => {});
-        }
+        if (client) { client.removeAllListeners(); void client.leave().catch(() => {}); }
 
-        if (remoteVideoRef.current) {
-            remoteVideoRef.current.innerHTML = '';
-        }
-
+        if (remoteVideoRef.current) remoteVideoRef.current.innerHTML = '';
         socketRef.current?.disconnect();
-        onEndCall?.();
+        navigateAway();
     };
     const sendMessage = e => {
         e.preventDefault();
@@ -541,7 +557,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     );
     if (phase === 'completed') return (
         <StatusScreen icon={<PhoneOff className="w-10 h-10 text-slate-400" />}
-            title="Call Ended" subtitle="This consultation has been completed." onClose={onEndCall}>
+            title="Call Ended" subtitle="This consultation has been completed." onClose={navigateAway}>
             {messages.length > 0 && (
                 <div className="w-full max-w-sm mt-2 bg-gray-800 rounded-xl overflow-hidden">
                     <p className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-700">Session Chat History</p>
@@ -562,7 +578,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     );
     if (phase === 'error') return (
         <StatusScreen icon={<PhoneOff className="w-10 h-10 text-red-400" />}
-            title="Session Error" subtitle={sessionError || 'Could not connect to this session.'} onClose={onEndCall} />
+            title="Session Error" subtitle={sessionError || 'Could not connect to this session.'} onClose={navigateAway} />
     );
 
     // ── timer bar color ───────────────────────────────────────────────────────
@@ -588,10 +604,10 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
 
     // ── main call UI ──────────────────────────────────────────────────────────
     return (
-        <div className="flex flex-col w-full rounded-2xl overflow-hidden shadow-2xl bg-gray-900">
+        <div ref={containerRef} className={`flex flex-col w-full shadow-2xl bg-gray-900 ${isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'rounded-2xl overflow-hidden'}`}>
 
             {/* Timer bar */}
-            <div className={`relative flex items-center justify-between px-6 py-3 transition-colors duration-700 ${timerGradient}`}>
+            <div className={`relative flex items-center justify-between px-6 py-3 transition-colors duration-700 shrink-0 ${timerGradient}`}>
                 {/* Progress track */}
                 {progressPct !== null && (
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10">
@@ -630,10 +646,14 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                         className={`p-2 rounded-lg transition ${showChat ? 'bg-white/20 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}>
                         <MessageSquare className="w-4 h-4" />
                     </button>
+                    <button onClick={toggleFullscreen}
+                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition text-gray-300">
+                        {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                    </button>
                 </div>
             </div>
 
-            <div className="flex" style={{ height: 460 }}>
+            <div className="flex flex-1 min-h-0" style={isFullscreen ? {} : { height: 460 }}>
                 {/* Video area */}
                 <div className="relative flex-1 flex items-center justify-center bg-gray-900">
                     {mediaError ? (
@@ -659,21 +679,36 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                                 </div>
                             )}
 
-                            {/* Mid-call waiting overlay — other person left, timer paused */}
+                            {/* Waiting overlay — two distinct states */}
                             {phase === 'waiting' && !otherPresent && (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/90 z-20 gap-3">
                                     <div className="w-16 h-16 rounded-full bg-indigo-900/60 flex items-center justify-center animate-pulse">
                                         <Users className="w-8 h-8 text-indigo-300" />
                                     </div>
-                                    <p className="text-white font-bold text-lg">
-                                        {role === 'patient' ? 'Doctor' : 'Patient'} left the call
-                                    </p>
-                                    <p className="text-gray-400 text-sm">Timer is paused. Waiting for them to rejoin…</p>
+                                    {hadOtherJoinedRef.current ? (
+                                        <>
+                                            <p className="text-white font-bold text-lg">
+                                                {role === 'patient' ? 'Doctor' : 'Patient'} left the call
+                                            </p>
+                                            <p className="text-gray-400 text-sm">Timer is paused. Waiting for them to rejoin…</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="text-white font-bold text-lg">Waiting for {role === 'patient' ? 'doctor' : 'patient'} to join</p>
+                                            <p className="text-gray-400 text-sm">The timer will start once both participants are here.</p>
+                                        </>
+                                    )}
                                     {remainingMs !== null && (
                                         <div className="mt-1 px-4 py-2 bg-white/10 rounded-xl text-indigo-200 font-mono text-sm font-bold">
                                             {fmt(remainingMs)} remaining
                                         </div>
                                     )}
+                                    <button
+                                        onClick={handleEndCall}
+                                        className="mt-2 flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-full text-sm font-bold transition"
+                                    >
+                                        <PhoneOff className="w-4 h-4" /> Leave Call
+                                    </button>
                                 </div>
                             )}
 

@@ -7,6 +7,15 @@ import { MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 
 const TELE_URL = getTelemedicineServiceUrl();
 
+// Returns true if today is strictly before the appointment date (i.e. at least 1 day before)
+const isModifiable = (dateStr) => {
+    if (!dateStr) return true;
+    const apptDate = new Date(`${dateStr}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today < apptDate; // must be before the day of the appointment
+};
+
 const getJoinState = (date, time) => {
     if (!date || !time) return { canJoin: true, label: 'Join Call' };
 
@@ -180,6 +189,15 @@ export default function MyAppointments({ setActiveCall }) {
         navigate('/patient/appointments', { replace: true, state: {} });
         return () => clearTimeout(retry);
     }, [fetchAll, location.state, navigate]);
+
+    // Auto-expand chat for a just-completed call
+    useEffect(() => {
+        const completedId = location.state?.completedCall;
+        if (!completedId) return;
+        navigate('/patient/appointments', { replace: true, state: {} });
+        loadChat(completedId).then(() => setExpandedChat(completedId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.state?.completedCall]);
 
     const handleCancelAppointment = async (apptId) => {
         try {
@@ -388,7 +406,7 @@ export default function MyAppointments({ setActiveCall }) {
                                                 </button>
                                             );
                                         })()}
-                                        {appt.status === 'accepted' && getJoinState(appt.date, appt.time).label === 'Slot Ended' && (
+                                        {appt.status === 'accepted' && (getJoinState(appt.date, appt.time).label === 'Slot Ended' || chatHistories[appt._id] !== undefined) && (
                                             <button
                                                 onClick={() => loadChat(appt._id)}
                                                 className="px-4 py-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition text-sm font-bold border border-slate-100 flex items-center gap-1.5"
@@ -400,8 +418,12 @@ export default function MyAppointments({ setActiveCall }) {
                                         )}
                                         {appt.status !== 'cancelled' && (
                                             <>
-                                                <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition text-sm font-bold border border-slate-100">Reschedule</button>
-                                                <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-bold border border-red-100">Cancel</button>
+                                                {isModifiable(appt.date) && (
+                                                    <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition text-sm font-bold border border-slate-100">Reschedule</button>
+                                                )}
+                                                {isModifiable(appt.date) && (
+                                                    <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-bold border border-red-100">Cancel</button>
+                                                )}
                                                    {appt.status === 'accepted' && appt.paymentStatus !== 'paid' && (
                                                        <button onClick={() => handlePayNow(appt)} className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition text-sm font-bold shadow-lg shadow-slate-200">Pay Now</button>
                                                    )}
