@@ -82,6 +82,13 @@ const appendDoctorToDescription = (description, doctorName, orderId) => {
     return `${baseDescription} - ${doctorLabel}`;
 };
 
+const extractOrderIdFromDescription = (description = '') => {
+    const prefix = 'PayHere payment for ';
+    const normalizedDescription = String(description || '').trim();
+    if (!normalizedDescription.startsWith(prefix)) return '';
+    return normalizedDescription.slice(prefix.length).split(' ')[0].trim();
+};
+
 const fetchDoctorNamesByIds = async (doctorIds) => {
     const doctorNamesById = new Map();
 
@@ -357,11 +364,8 @@ app.get('/transactions/patient/:patientId', async (req, res) => {
 
         const enrichedLegacyTxs = legacyTxs.map((tx) => {
             let resolvedOrderId = tx.orderId;
-            if (!resolvedOrderId && typeof tx.description === 'string') {
-                const prefix = 'PayHere payment for ';
-                if (tx.description.startsWith(prefix)) {
-                    resolvedOrderId = tx.description.slice(prefix.length).split(' ')[0];
-                }
+            if (!resolvedOrderId) {
+                resolvedOrderId = extractOrderIdFromDescription(tx.description);
             }
 
             const paymentMeta = resolvedOrderId ? pendingByOrderId.get(resolvedOrderId) : null;
@@ -410,6 +414,111 @@ app.get('/transactions/patient/:patientId', async (req, res) => {
         });
 
         res.json(displayTxs);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/transactions/doctor/:doctorId', async (req, res) => {
+    try {
+        const { doctorId } = req.params;
+        if (!doctorId) return res.status(400).json({ error: 'Missing doctorId' });
+
+        const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
+
+        const directTxs = await Transaction.find({ doctorId }).sort({ date: -1 }).limit(limit).lean();
+
+        const successfulPendingPayments = await PendingPayment.find({ doctorId, status: 'success' })
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .lean();
+
+        const pendingByOrderId = new Map(
+            successfulPendingPayments
+                .filter((payment) => payment.orderId)
+                .map((payment) => [payment.orderId, payment])
+        );
+
+        const directOrderIds = new Set(
+            directTxs
+                .map((tx) => tx.orderId)
+                .filter(Boolean)
+        );
+
+        const missingOrderIds = successfulPendingPayments
+            .map((payment) => payment.orderId)
+            .filter((orderId) => orderId && !directOrderIds.has(orderId));
+
+        let legacyTxs = [];
+        if (missingOrderIds.length > 0) {
+            const legacyDescriptions = missingOrderIds.map((orderId) => `PayHere payment for ${orderId}`);
+
+            legacyTxs = await Transaction.find({
+                $or: [
+                    { orderId: { $in: missingOrderIds } },
+                    { description: { $in: legacyDescriptions } }
+                ]
+            }).sort({ date: -1 }).lean();
+        }
+
+        const enrichedLegacyTxs = legacyTxs.map((tx) => {
+            let resolvedOrderId = tx.orderId;
+            if (!resolvedOrderId) {
+                resolvedOrderId = extractOrderIdFromDescription(tx.description);
+            }
+
+            const paymentMeta = resolvedOrderId ? pendingByOrderId.get(resolvedOrderId) : null;
+
+            return {
+                ...tx,
+                orderId: resolvedOrderId || tx.orderId,
+                appointmentId: tx.appointmentId || paymentMeta?.appointmentId,
+                patientId: tx.patientId || paymentMeta?.patientId,
+                doctorId: tx.doctorId || paymentMeta?.doctorId || doctorId,
+                doctorName: normalizeDoctorName(tx.doctorName || paymentMeta?.doctorName)
+            };
+        });
+
+        const mergedById = new Map();
+        [...directTxs, ...enrichedLegacyTxs].forEach((tx) => {
+            const key = String(tx._id || '') || `${tx.orderId || ''}:${tx.date || ''}:${tx.amount || ''}`;
+            if (!mergedById.has(key)) {
+                mergedById.set(key, tx);
+            }
+        });
+
+        const mergedTxs = Array.from(mergedById.values())
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, limit);
+
+        const doctorName = normalizeDoctorName(
+            mergedTxs.find((tx) => normalizeDoctorName(tx.doctorName))?.doctorName
+        );
+
+        const displayTxs = mergedTxs.map((tx) => {
+            const resolvedDoctorName = normalizeDoctorName(tx.doctorName || doctorName);
+            return {
+                ...tx,
+                doctorName: resolvedDoctorName,
+                description: appendDoctorToDescription(tx.description, resolvedDoctorName, tx.orderId)
+            };
+        });
+
+        const grossTotal = displayTxs.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+        const doctorIncome = Math.round(grossTotal * 0.9);
+        const websiteCommission = grossTotal - doctorIncome;
+        const currency = String(displayTxs[0]?.currency || 'lkr').toUpperCase();
+
+        res.json({
+            doctorId,
+            doctorName,
+            transactionCount: displayTxs.length,
+            grossTotal,
+            doctorIncome,
+            websiteCommission,
+            currency,
+            transactions: displayTxs
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

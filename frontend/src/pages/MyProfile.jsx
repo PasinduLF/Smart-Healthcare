@@ -314,6 +314,18 @@ export default function MyProfile() {
                         </Link>
                     </div>
                 )}
+
+                {currentRole === 'doctor' && (
+                    <div className="mt-4">
+                        <Link
+                            to="/doctor/consultation-fee"
+                            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white border border-white shadow-sm text-teal-700 font-bold hover:bg-teal-50 transition"
+                        >
+                            <ReceiptText className="w-4 h-4" />
+                            Consultation Fee Calculation
+                        </Link>
+                    </div>
+                )}
             </div>
 
             <form onSubmit={handleSubmit} className="glass-premium p-6 md:p-8 rounded-3xl border border-slate-100 space-y-6">
@@ -470,6 +482,16 @@ export default function MyProfile() {
                         >
                             <ReceiptText className="w-4 h-4" />
                             Transactions History
+                        </Link>
+                    )}
+
+                    {currentRole === 'doctor' && (
+                        <Link
+                            to="/doctor/consultation-fee"
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-teal-700 font-bold hover:bg-teal-50 transition"
+                        >
+                            <ReceiptText className="w-4 h-4" />
+                            Consultation Fee Calculation
                         </Link>
                     )}
                 </div>

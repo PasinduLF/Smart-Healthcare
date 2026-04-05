@@ -34,6 +34,7 @@ import DoctorSchedule from './pages/doctor/DoctorSchedule';
 import DoctorAppointments from './pages/doctor/Appointments';
 import DoctorPrescriptions from './pages/doctor/Prescriptions';
 import DoctorTelemedicine from './pages/doctor/Telemedicine';
+import ConsultationFeeCalulation from './pages/doctor/ConsultationFeeCalulation';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -109,6 +110,7 @@ function AppContent() {
                     }>
                         <Route index element={<Navigate to="appointments" replace />} />
                         <Route path="profile" element={<MyProfile />} />
+                        <Route path="consultation-fee" element={<ConsultationFeeCalulation />} />
                         <Route path="schedule" element={<DoctorSchedule />} />
                         <Route path="appointments" element={<DoctorAppointments setActiveCall={setActiveCall} />} />
                         <Route path="telemedicine" element={<DoctorTelemedicine activeCall={activeCall} setActiveCall={setActiveCall} />} />
