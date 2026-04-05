@@ -256,9 +256,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             // Navigate after a short delay so user sees the "Call Ended" screen briefly
             setTimeout(() => {
                 if (!mounted) return;
-                onEndCall?.();
-                if (role === 'doctor') navigate('/doctor/appointments');
-                else navigate('/patient/appointments');
+                navigateAwayRef.current?.();
             }, 2500);
         });
 
@@ -503,11 +501,13 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             console.error('Audio toggle failed:', err);
         }
     };
+    const navigateAwayRef = useRef(null);
     const navigateAway = () => {
         onEndCall?.();
         if (role === 'doctor') navigate('/doctor/appointments');
         else navigate('/patient/appointments', { state: { completedCall: appointmentId } });
     };
+    navigateAwayRef.current = navigateAway;
 
     const handleEndCall = () => {
         const { audioTrack, videoTrack } = localTracksRef.current;
@@ -604,10 +604,10 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
 
     // ── main call UI ──────────────────────────────────────────────────────────
     return (
-        <div ref={containerRef} className="flex flex-col w-full rounded-2xl overflow-hidden shadow-2xl bg-gray-900">
+        <div ref={containerRef} className={`flex flex-col w-full shadow-2xl bg-gray-900 ${isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'rounded-2xl overflow-hidden'}`}>
 
             {/* Timer bar */}
-            <div className={`relative flex items-center justify-between px-6 py-3 transition-colors duration-700 ${timerGradient}`}>
+            <div className={`relative flex items-center justify-between px-6 py-3 transition-colors duration-700 shrink-0 ${timerGradient}`}>
                 {/* Progress track */}
                 {progressPct !== null && (
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10">
@@ -653,7 +653,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                 </div>
             </div>
 
-            <div className="flex" style={{ height: 460 }}>
+            <div className="flex flex-1 min-h-0" style={isFullscreen ? {} : { height: 460 }}>
                 {/* Video area */}
                 <div className="relative flex-1 flex items-center justify-center bg-gray-900">
                     {mediaError ? (
