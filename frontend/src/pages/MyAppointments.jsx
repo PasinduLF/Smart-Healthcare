@@ -388,7 +388,7 @@ export default function MyAppointments({ setActiveCall }) {
                                                 </button>
                                             );
                                         })()}
-                                        {appt.status === 'accepted' && (
+                                        {appt.status === 'accepted' && getJoinState(appt.date, appt.time).label === 'Slot Ended' && (
                                             <button
                                                 onClick={() => loadChat(appt._id)}
                                                 className="px-4 py-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition text-sm font-bold border border-slate-100 flex items-center gap-1.5"
