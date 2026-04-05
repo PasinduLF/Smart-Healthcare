@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, Phone, Clock3, Stethoscope, ShieldCheck, BadgeCheck, Save, ImagePlus, Lock, Languages, MapPin } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { User, Mail, Phone, Clock3, Stethoscope, ShieldCheck, BadgeCheck, Save, ImagePlus, Lock, Languages, MapPin, ReceiptText } from 'lucide-react';
 
 const API_BASE = 'http://localhost:3000';
 
@@ -301,6 +302,18 @@ export default function MyProfile() {
                         {messages.avatar}
                     </p>
                 )}
+
+                {currentRole === 'patient' && (
+                    <div className="mt-4">
+                        <Link
+                            to="/patient/transactions"
+                            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white border border-white shadow-sm text-blue-700 font-bold hover:bg-blue-50 transition"
+                        >
+                            <ReceiptText className="w-4 h-4" />
+                            View Transaction History
+                        </Link>
+                    </div>
+                )}
             </div>
 
             <form onSubmit={handleSubmit} className="glass-premium p-6 md:p-8 rounded-3xl border border-slate-100 space-y-6">
@@ -444,10 +457,22 @@ export default function MyProfile() {
             </form>
 
             <form onSubmit={handlePasswordChange} className="glass-premium p-6 md:p-8 rounded-3xl border border-slate-100 space-y-5">
-                <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                    <Lock className="w-5 h-5 text-slate-500" />
-                    Change Password
-                </h3>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                        <Lock className="w-5 h-5 text-slate-500" />
+                        Change Password
+                    </h3>
+
+                    {currentRole === 'patient' && (
+                        <Link
+                            to="/patient/transactions"
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-blue-700 font-bold hover:bg-blue-50 transition"
+                        >
+                            <ReceiptText className="w-4 h-4" />
+                            Transactions History
+                        </Link>
+                    )}
+                </div>
 
                 <div className="grid md:grid-cols-3 gap-4">
                     <label className="space-y-2 block">

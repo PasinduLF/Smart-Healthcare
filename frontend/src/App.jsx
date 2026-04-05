@@ -22,6 +22,7 @@ import HealthProfile from './pages/patient/HealthProfile';
 import MedicalReports from './pages/patient/MedicalReports';
 import Prescriptions from './pages/patient/Prescriptions';
 import Telemedicine from './pages/patient/Telemedicine';
+import TransactionHistory from './pages/patient/TransactionHistory';
 import BookAppointment from './pages/BookAppointment';
 import MyAppointments from './pages/MyAppointments';
 import PatientPaymentService from './pages/PatientPaymentService';
@@ -91,6 +92,7 @@ function AppContent() {
                         <Route path="appointments" element={<MyAppointments setActiveCall={setActiveCall} />} />
                         <Route path="telemedicine" element={<Telemedicine activeCall={activeCall} setActiveCall={setActiveCall} />} />
                         <Route path="profile" element={<MyProfile />} />
+                        <Route path="transactions" element={<TransactionHistory />} />
                         <Route path="health" element={<HealthProfile />} />
                         <Route path="prescriptions" element={<Prescriptions />} />
                         <Route path="reports" element={<MedicalReports />} />
