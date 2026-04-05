@@ -3,7 +3,7 @@ import { Calendar, Clock, ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL } from '../config/api';
+import { getAppointmentServiceUrl, getDoctorServiceUrl } from '../config/api';
 
 const dayKeyFromDate = (dateStr) => {
 	if (!dateStr) return null;
@@ -72,6 +72,16 @@ const buildSlotsForDay = (dayAvailability) => {
 	return Array.from(new Set(slots)).sort();
 };
 
+const normalizeListPayload = (payload, candidateKeys = []) => {
+	if (Array.isArray(payload)) return payload;
+	if (payload && typeof payload === 'object') {
+		for (const key of candidateKeys) {
+			if (Array.isArray(payload[key])) return payload[key];
+		}
+	}
+	return [];
+};
+
 export default function BookAppointment() {
 	const { doctorId } = useParams();
 	const navigate = useNavigate();
@@ -92,13 +102,19 @@ export default function BookAppointment() {
 			try {
 				const config = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
 				const [doctorRes, apptRes] = await Promise.all([
-					axios.get(`${API_BASE_URL}/api/doctors/profile/${doctorId}`, config),
-					axios.get(`${API_BASE_URL}/api/appointments/doctor/${doctorId}`, config)
+					axios.get(getDoctorServiceUrl(`/profile/${doctorId}`), config),
+					axios.get(getAppointmentServiceUrl(`/doctor/${doctorId}`), config)
 				]);
 				if (!isMounted) return;
-				setDoctor(doctorRes.data);
-				setAvailability(parseAvailability(doctorRes.data.availability));
-				setAppointments(apptRes.data || []);
+				const doctorPayload = doctorRes.data;
+				const doctorProfile = Array.isArray(doctorPayload)
+					? (doctorPayload[0] || null)
+					: (doctorPayload && typeof doctorPayload === 'object' ? doctorPayload : null);
+				const doctorAppointments = normalizeListPayload(apptRes.data, ['appointments', 'data']);
+
+				setDoctor(doctorProfile);
+				setAvailability(parseAvailability(doctorProfile?.availability));
+				setAppointments(doctorAppointments);
 			} catch (err) {
 				console.error('Failed to load doctor profile', err);
 			} finally {
@@ -120,7 +136,7 @@ export default function BookAppointment() {
 	const bookedSlots = useMemo(() => {
 		if (!selectedDate) return new Set();
 		return new Set(
-			appointments
+			normalizeListPayload(appointments)
 				.filter((appt) => appt.date === selectedDate && appt.status !== 'cancelled' && appt.status !== 'rejected')
 				.map((appt) => normalizeTime(appt.time))
 				.filter(Boolean)
@@ -132,7 +148,7 @@ export default function BookAppointment() {
 		if (!selectedDate || !selectedTime) return alert('Please select a date and time');
 		setSaving(true);
 		try {
-			await axios.post(`${API_BASE_URL}/api/appointments/book`, {
+			await axios.post(getAppointmentServiceUrl('/book'), {
 				patientId: user.id,
 				doctorId,
 				date: selectedDate,

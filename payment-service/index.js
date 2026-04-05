@@ -46,6 +46,34 @@ const buildPayHereHash = (merchantId, orderId, amount, currency, merchantSecret)
     return crypto.createHash('md5').update(hashInput).digest('hex').toUpperCase();
 };
 
+const syncAppointmentPayment = async (payment) => {
+    const appointmentServiceUrl = process.env.APPOINTMENT_SERVICE_URL || 'http://appointment-service:3003';
+    await axios.put(`${appointmentServiceUrl}/payment/${payment.appointmentId}`);
+};
+
+const recordSuccessfulTransaction = async (payment) => {
+    const description = `PayHere payment for ${payment.orderId}`;
+    await Transaction.findOneAndUpdate(
+        { description },
+        {
+            $setOnInsert: {
+                amount: Math.round(payment.amount * 100),
+                currency: payment.currency.toLowerCase(),
+                description,
+                status: 'success'
+            }
+        },
+        { upsert: true, new: true }
+    );
+};
+
+const finalizeSuccessfulPayment = async (payment) => {
+    payment.status = 'success';
+    await payment.save();
+    await syncAppointmentPayment(payment);
+    await recordSuccessfulTransaction(payment);
+};
+
 app.post('/create-checkout-session', async (req, res) => {
     const { amount, currency, description } = req.body;
 
@@ -170,18 +198,7 @@ app.post('/payhere/notify', async (req, res) => {
         if (!payment) return res.status(404).send('Order not found');
 
         if (String(statusCode) === '2') {
-            payment.status = 'success';
-            await payment.save();
-
-            const appointmentServiceUrl = process.env.APPOINTMENT_SERVICE_URL || 'http://appointment-service:3003';
-            await axios.put(`${appointmentServiceUrl}/payment/${payment.appointmentId}`);
-
-            await new Transaction({
-                amount: Math.round(payment.amount * 100),
-                currency: payment.currency.toLowerCase(),
-                description: `PayHere payment for ${payment.orderId}`,
-                status: 'success'
-            }).save();
+            await finalizeSuccessfulPayment(payment);
         } else {
             payment.status = 'failed';
             await payment.save();
@@ -189,7 +206,24 @@ app.post('/payhere/notify', async (req, res) => {
 
         res.send('OK');
     } catch (err) {
+        console.error('PayHere notify error:', err.message);
         res.status(500).send('ERROR');
+    }
+});
+
+app.post('/payhere/confirm', async (req, res) => {
+    try {
+        const orderId = req.body?.orderId || req.body?.order_id || req.query?.order_id;
+        if (!orderId) return res.status(400).json({ error: 'Missing order_id' });
+
+        const payment = await PendingPayment.findOne({ orderId });
+        if (!payment) return res.status(404).json({ error: 'Order not found' });
+
+        await finalizeSuccessfulPayment(payment);
+        res.json({ message: 'Payment confirmed', orderId });
+    } catch (err) {
+        console.error('PayHere confirm error:', err.message);
+        res.status(500).json({ error: err.message });
     }
 });
 

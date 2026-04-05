@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { getDoctorServiceUrl } from '../../config/api';
 
 export default function Prescriptions() {
     const { user, token } = useAuth();
@@ -11,7 +12,7 @@ export default function Prescriptions() {
         const fetchPrescriptions = async () => {
             if (!user?.id) return;
             try {
-                const res = await axios.get(`http://localhost:3000/api/doctors/prescriptions/patient/${user.id}`, { 
+                const res = await axios.get(getDoctorServiceUrl(`/prescriptions/patient/${user.id}`), {
                     headers: { Authorization: `Bearer ${token}` } 
                 });
                 setPrescriptions(res.data);

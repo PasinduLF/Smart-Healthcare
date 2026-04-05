@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { getAppointmentServiceUrl } from '../../config/api';
 
 export default function PatientAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
@@ -14,7 +15,7 @@ export default function PatientAppointments({ setActiveCall }) {
         const fetchAppointments = async () => {
             if (!user?.id) return;
             try {
-                const apptRes = await axios.get(`http://localhost:3000/api/appointments/patient/${user.id}`, { 
+                const apptRes = await axios.get(getAppointmentServiceUrl(`/patient/${user.id}`), {
                     headers: { Authorization: `Bearer ${token}` } 
                 });
                 setAppointments(apptRes.data);
@@ -29,7 +30,7 @@ export default function PatientAppointments({ setActiveCall }) {
 
     const handleCancelAppointment = async (apptId) => {
         try {
-            await axios.put(`http://localhost:3000/api/appointments/cancel/${apptId}`, {}, {
+            await axios.put(getAppointmentServiceUrl(`/cancel/${apptId}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAppointments(appointments.map(a => a._id === apptId ? { ...a, status: 'cancelled' } : a));
@@ -42,7 +43,7 @@ export default function PatientAppointments({ setActiveCall }) {
     const handleReschedule = async (apptId) => {
         if (!rescheduleData.date || !rescheduleData.time) return alert("Please select date and time");
         try {
-            await axios.put(`http://localhost:3000/api/appointments/reschedule/${apptId}`, 
+            await axios.put(getAppointmentServiceUrl(`/reschedule/${apptId}`),
                 { date: rescheduleData.date, time: rescheduleData.time }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -55,8 +56,8 @@ export default function PatientAppointments({ setActiveCall }) {
         }
     };
 
-    const startTelemedicine = (apptId) => {
-        setActiveCall(`channel-${apptId}`);
+    const startTelemedicine = (appt) => {
+        setActiveCall({ id: appt._id, date: appt.date, time: appt.time });
         navigate('/patient/telemedicine');
     };
 
@@ -88,7 +89,7 @@ export default function PatientAppointments({ setActiveCall }) {
                                 {appt.status !== 'cancelled' && appt.status !== 'rejected' && rescheduleData.id !== appt._id && (
                                     <>
                                         {appt.status === 'accepted' && (
-                                            <button onClick={() => startTelemedicine(appt._id)} className="px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition text-sm font-medium">Join Call</button>
+                                            <button onClick={() => startTelemedicine(appt)} className="px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition text-sm font-medium">Join Call</button>
                                         )}
                                         <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition text-sm font-medium">Reschedule</button>
                                         <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-medium">Cancel Appt</button>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { getAppointmentServiceUrl, getDoctorServiceUrl, getPatientServiceUrl, getPaymentServiceUrl } from '../../config/api';
 import { 
     Users, 
     ShieldCheck, 
@@ -30,11 +31,11 @@ export default function AdminDashboard() {
             try {
                 const config = { headers: { Authorization: `Bearer ${token}` } };
                 const [pRes, dRes, aRes, pendRes, txRes] = await Promise.all([
-                    axios.get('http://localhost:3000/api/patients/stats', config),
-                    axios.get('http://localhost:3000/api/doctors/stats', config),
-                    axios.get('http://localhost:3000/api/appointments/stats', config),
-                    axios.get('http://localhost:3000/api/doctors/pending', config),
-                    axios.get('http://localhost:3000/api/payments/transactions', config)
+                    axios.get(getPatientServiceUrl('/stats'), config),
+                    axios.get(getDoctorServiceUrl('/stats'), config),
+                    axios.get(getAppointmentServiceUrl('/stats'), config),
+                    axios.get(getDoctorServiceUrl('/pending'), config),
+                    axios.get(getPaymentServiceUrl('/transactions'), config)
                 ]);
 
                 // Calculate total revenue from transactions

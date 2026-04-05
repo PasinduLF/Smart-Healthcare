@@ -6,15 +6,15 @@ services:
     ports:
       - "${PORT_GATEWAY}:${PORT_GATEWAY}"
     environment:
-      - PORT=${PORT_GATEWAY}
-      - PATIENT_SERVICE_URL=http://patient-service:${PORT_PATIENT}
-      - DOCTOR_SERVICE_URL=http://doctor-service:${PORT_DOCTOR}
-      - APPOINTMENT_SERVICE_URL=http://appointment-service:${PORT_APPOINTMENT}
-      - TELEMEDICINE_SERVICE_URL=http://telemedicine-service:${PORT_TELEMEDICINE}
-      - PAYMENT_SERVICE_URL=http://payment-service:${PORT_PAYMENT}
-      - NOTIFICATION_SERVICE_URL=http://notification-service:${PORT_NOTIFICATION}
-      - AI_SERVICE_URL=http://ai-service:${PORT_AI}
-      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3000
+      - PATIENT_SERVICE_URL=https://smart-healthcare-lckn.onrender.com
+      - DOCTOR_SERVICE_URL=https://smart-healthcare-doctor-service.onrender.com
+      - APPOINTMENT_SERVICE_URL=http://appointment-service:3003
+      - TELEMEDICINE_SERVICE_URL=http://telemedicine-service:3004
+      - PAYMENT_SERVICE_URL=http://payment-service:3005
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3006
+      - AI_SERVICE_URL=https://smart-healthcare-1-morq.onrender.com
+      - JWT_SECRET=smarthealthcare_supersecret_key
     depends_on:
       - patient-service
       - doctor-service
@@ -57,18 +57,22 @@ services:
     ports:
       - "${PORT_TELEMEDICINE}:${PORT_TELEMEDICINE}"
     environment:
-      - PORT=${PORT_TELEMEDICINE}
+      - PORT=3004
+      - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
+      - AGORA_APP_ID=ebd1cd2c36ac4a3394dc797349935d6f
+      - AGORA_APP_CERTIFICATE=45a454bb8c02433d91ad726c6e2c71c7
+      - AGORA_TOKEN_EXPIRY_SECONDS=3600
 
   payment-service:
     build: ./payment-service
     ports:
       - "${PORT_PAYMENT}:${PORT_PAYMENT}"
     environment:
-      - PORT=${PORT_PAYMENT}
-      - PAYHERE_MERCHANT_ID=${PAYHERE_MERCHANT_ID}
-      - PAYHERE_MERCHANT_SECRET=${PAYHERE_MERCHANT_SECRET}
-      - FRONTEND_BASE_URL=${FRONTEND_BASE_URL}
-      - PAYHERE_NOTIFY_URL=${PAYHERE_NOTIFY_URL}
+      - PORT=3005
+      - PAYHERE_MERCHANT_ID=1234712
+      - PAYHERE_MERCHANT_SECRET=MTg4NDA5NTM2ODI4NDIyOTk4NjgxNjkyODY4MTYxMjgwNzUxNjY2Mg==
+      - FRONTEND_BASE_URL=https://www.smarthealthcar.me
+      - PAYHERE_NOTIFY_URL=https://smart-healthcare-payment.onrender.com/payhere/notify
 
   notification-service:
     build: ./notification-service
@@ -82,6 +86,6 @@ services:
     ports:
       - "${PORT_AI}:${PORT_AI}"
     environment:
-      - PORT=${PORT_AI}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net${MONGO_URI_AI_SUFFIX}
+      - PORT=3007
+      - GROQ_API_KEY=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
+      - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/smart-health-ai?appName=Cluster0

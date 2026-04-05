@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { getPatientServiceUrl } from '../../config/api';
 import { FileText } from 'lucide-react';
 
 export default function MedicalReports() {
@@ -14,7 +15,7 @@ export default function MedicalReports() {
         const fetchReports = async () => {
             if (!user?.id) return;
             try {
-                const res = await axios.get(`http://localhost:3000/api/patients/profile/${user.id}`, { 
+                const res = await axios.get(getPatientServiceUrl(`/profile/${user.id}`), { 
                     headers: { Authorization: `Bearer ${token}` } 
                 });
                 setReports(res.data.reports || []);
@@ -36,7 +37,7 @@ export default function MedicalReports() {
 
         setUploading(true);
         try {
-            const res = await axios.post(`http://localhost:3000/api/patients/upload-report/${user.id}`, formData, {
+            const res = await axios.post(getPatientServiceUrl(`/upload-report/${user.id}`), formData, {
                 headers: { 
                     'Content-Type': 'multipart/form-data',
                     Authorization: `Bearer ${token}` 
@@ -80,7 +81,7 @@ export default function MedicalReports() {
                                     <p className="font-medium text-gray-800 truncate" title={report.originalName}>{report.originalName}</p>
                                     <p className="text-xs text-gray-500">{new Date(report.uploadedAt).toLocaleDateString()}</p>
                                 </div>
-                                <a href={`http://localhost:3000${report.url}`} target="_blank" rel="noreferrer" className="flex-shrink-0 ml-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">
+                                <a href={getPatientServiceUrl(report.url || '')} target="_blank" rel="noreferrer" className="flex-shrink-0 ml-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">
                                     View
                                 </a>
                             </div>

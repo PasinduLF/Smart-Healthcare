@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { getPatientServiceUrl } from '../../config/api';
+import { getAppointmentServiceUrl } from '../../config/api';
 import { useNavigate } from 'react-router-dom';
 import { Activity, X } from 'lucide-react';
+
+function getJoinState() {
+    return { canJoin: true, label: 'Start Consultation' };
+}
 
 export default function DoctorAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
@@ -10,12 +16,13 @@ export default function DoctorAppointments({ setActiveCall }) {
     const [appointments, setAppointments] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [, setTick] = useState(0);
 
     useEffect(() => {
         const fetchAppointments = async () => {
             if (!user?.id) return;
             try {
-                const res = await axios.get(`http://localhost:3000/api/appointments/doctor/${user.id}`, { 
+                const res = await axios.get(getAppointmentServiceUrl(`/doctor/${user.id}`), {
                     headers: { Authorization: `Bearer ${token}` } 
                 });
                 setAppointments(res.data);
@@ -30,7 +37,7 @@ export default function DoctorAppointments({ setActiveCall }) {
 
     const viewPatientProfile = async (patientId) => {
         try {
-            const pRes = await axios.get(`http://localhost:3000/api/patients/profile/${patientId}`, { 
+            const pRes = await axios.get(getPatientServiceUrl(`/profile/${patientId}`), { 
                 headers: { Authorization: `Bearer ${token}` }
             });
             setSelectedPatient(pRes.data);
@@ -42,7 +49,7 @@ export default function DoctorAppointments({ setActiveCall }) {
 
     const handleAccept = async (id) => {
         try {
-            await axios.put(`http://localhost:3000/api/appointments/accept/${id}`, {}, {
+            await axios.put(getAppointmentServiceUrl(`/accept/${id}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAppointments(appointments.map(a => a._id === id ? { ...a, status: 'accepted' } : a));
@@ -54,7 +61,7 @@ export default function DoctorAppointments({ setActiveCall }) {
 
     const handleReject = async (id) => {
         try {
-            await axios.put(`http://localhost:3000/api/appointments/reject/${id}`, {}, {
+            await axios.put(getAppointmentServiceUrl(`/reject/${id}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAppointments(appointments.map(a => a._id === id ? { ...a, status: 'rejected' } : a));
@@ -64,8 +71,8 @@ export default function DoctorAppointments({ setActiveCall }) {
         }
     };
 
-    const startTelemedicine = (apptId) => {
-        setActiveCall(`channel-${apptId}`);
+    const startTelemedicine = (appt) => {
+        setActiveCall({ id: appt._id, date: appt.date, time: appt.time });
         navigate('/doctor/telemedicine');
     };
 
@@ -113,9 +120,22 @@ export default function DoctorAppointments({ setActiveCall }) {
                                         <button onClick={() => handleReject(appt._id)} className="px-5 py-2.5 bg-red-50 text-red-600 text-xs font-bold rounded-xl hover:bg-red-100 border border-red-100">Reject</button>
                                     </>
                                 )}
-                                {appt.status === 'accepted' && (
-                                    <button onClick={() => startTelemedicine(appt._id)} className="px-6 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100">Start Consultation</button>
-                                )}
+                                {appt.status === 'accepted' && (() => {
+                                    const { canJoin, label } = getJoinState();
+                                    return (
+                                        <button
+                                            onClick={() => canJoin && startTelemedicine(appt)}
+                                            disabled={!canJoin}
+                                            className={`px-6 py-2.5 text-xs font-bold rounded-xl transition ${
+                                                canJoin
+                                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100'
+                                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })()}
                                 <button onClick={() => viewPatientProfile(appt.patientId)} className="px-5 py-2.5 bg-slate-50 text-slate-600 text-xs font-bold rounded-xl hover:bg-white border border-slate-100 shadow-sm">Patient Details</button>
                             </div>
                         </div>

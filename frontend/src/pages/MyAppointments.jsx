@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL } from '../config/api';
+import { getAppointmentServiceUrl, getDoctorServiceUrl } from '../config/api';
 import { useLocation, useNavigate } from 'react-router-dom';
+
+const getJoinState = () => ({ canJoin: true, label: 'Join Call' });
 
 const dayKeyFromDate = (dateStr) => {
     if (!dateStr) return null;
@@ -72,6 +74,16 @@ const buildSlotsForDay = (dayAvailability) => {
     return Array.from(new Set(slots)).sort();
 };
 
+const normalizeListPayload = (payload, candidateKeys = []) => {
+    if (Array.isArray(payload)) return payload;
+    if (payload && typeof payload === 'object') {
+        for (const key of candidateKeys) {
+            if (Array.isArray(payload[key])) return payload[key];
+        }
+    }
+    return [];
+};
+
 export default function MyAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
     const navigate = useNavigate();
@@ -87,16 +99,19 @@ export default function MyAppointments({ setActiveCall }) {
         if (!user?.id || !token) return;
         try {
             const [docRes, apptRes] = await Promise.all([
-                axios.get(`${API_BASE_URL}/api/doctors/list`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_BASE_URL}/api/appointments/patient/${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
+                axios.get(getDoctorServiceUrl('/list'), { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(getAppointmentServiceUrl(`/patient/${user.id}`), { headers: { Authorization: `Bearer ${token}` } })
             ]);
 
-            setAppointments(apptRes.data);
-            setDoctorMap(docRes.data.reduce((acc, doc) => {
+            const doctors = normalizeListPayload(docRes.data, ['doctors', 'data']);
+            const patientAppointments = normalizeListPayload(apptRes.data, ['appointments', 'data']);
+
+            setAppointments(patientAppointments);
+            setDoctorMap(doctors.reduce((acc, doc) => {
                 acc[doc._id] = doc.name;
                 return acc;
             }, {}));
-            setDoctorAvailabilityMap(docRes.data.reduce((acc, doc) => {
+            setDoctorAvailabilityMap(doctors.reduce((acc, doc) => {
                 acc[doc._id] = doc.availability;
                 return acc;
             }, {}));
@@ -122,10 +137,10 @@ export default function MyAppointments({ setActiveCall }) {
 
     const handleCancelAppointment = async (apptId) => {
         try {
-            await axios.put(`${API_BASE_URL}/api/appointments/cancel/${apptId}`, {}, {
+            await axios.put(getAppointmentServiceUrl(`/cancel/${apptId}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAppointments(appointments.map(a => a._id === apptId ? { ...a, status: 'cancelled' } : a));
+            setAppointments((prev) => normalizeListPayload(prev).map((a) => a._id === apptId ? { ...a, status: 'cancelled' } : a));
         } catch (err) {
             console.error(err);
             alert('Failed to cancel appointment');
@@ -135,10 +150,10 @@ export default function MyAppointments({ setActiveCall }) {
     const handleReschedule = async (apptId) => {
         if (!rescheduleData.date || !rescheduleData.time) return alert("Please select date and time");
         try {
-            await axios.put(`${API_BASE_URL}/api/appointments/reschedule/${apptId}`, { date: rescheduleData.date, time: rescheduleData.time }, {
+            await axios.put(getAppointmentServiceUrl(`/reschedule/${apptId}`), { date: rescheduleData.date, time: rescheduleData.time }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAppointments(appointments.map(a => a._id === apptId ? { ...a, date: rescheduleData.date, time: rescheduleData.time, status: 'pending' } : a));
+            setAppointments((prev) => normalizeListPayload(prev).map((a) => a._id === apptId ? { ...a, date: rescheduleData.date, time: rescheduleData.time, status: 'pending' } : a));
             setRescheduleData({ id: null, date: '', time: '' });
             alert('Appointment rescheduled and is pending approval!');
         } catch (err) {
@@ -147,8 +162,8 @@ export default function MyAppointments({ setActiveCall }) {
         }
     };
 
-    const startTelemedicine = (apptId) => {
-        if (setActiveCall) setActiveCall(`channel-${apptId}`);
+    const startTelemedicine = (appt) => {
+        if (setActiveCall) setActiveCall({ id: appt._id, date: appt.date, time: appt.time });
         navigate('/patient/telemedicine');
     };
 
@@ -179,11 +194,11 @@ export default function MyAppointments({ setActiveCall }) {
         let isMounted = true;
         const fetchDoctorAppointments = async () => {
             try {
-                const res = await axios.get(`${API_BASE_URL}/api/appointments/doctor/${rescheduleTarget.doctorId}`, {
+                const res = await axios.get(getAppointmentServiceUrl(`/doctor/${rescheduleTarget.doctorId}`), {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (!isMounted) return;
-                setDoctorAppointments(res.data || []);
+                setDoctorAppointments(normalizeListPayload(res.data, ['appointments', 'data']));
             } catch (err) {
                 console.error('Failed to load doctor appointments', err);
             }
@@ -212,16 +227,21 @@ export default function MyAppointments({ setActiveCall }) {
         );
     }, [doctorAppointments, rescheduleData.date, rescheduleTarget]);
 
+    const activeAppointments = useMemo(
+        () => normalizeListPayload(appointments).filter((appt) => appt.status !== 'cancelled'),
+        [appointments]
+    );
+
     if (loading) return <div className="text-center py-10 text-gray-400">Loading appointments...</div>;
 
     return (
         <div>
             <h2 className="text-xl font-semibold mb-6">Upcoming Appointments</h2>
             <div className="space-y-4">
-                {appointments.filter(appt => appt.status !== 'cancelled').length === 0 ? (
+                {activeAppointments.length === 0 ? (
                     <p className="text-gray-500 text-center py-10 italic">No appointments scheduled.</p>
                 ) : (
-                    appointments.filter(appt => appt.status !== 'cancelled').map(appt => (
+                    activeAppointments.map(appt => (
                         <div key={appt._id} className="p-6 border rounded-xl bg-white/50 flex flex-col md:flex-row justify-between items-start md:items-center">
                             <div className="mb-4 md:mb-0">
                                 <h3 className="font-bold text-lg text-slate-800">{doctorMap?.[appt.doctorId] || 'Medical Specialist'}</h3>
@@ -283,9 +303,22 @@ export default function MyAppointments({ setActiveCall }) {
                             <div className="flex gap-2">
                                 {rescheduleData.id !== appt._id && (
                                     <>
-                                        {appt.status === 'accepted' && (
-                                            <button onClick={() => startTelemedicine(appt._id)} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition text-sm font-bold border border-indigo-100">Join Call</button>
-                                        )}
+                                        {appt.status === 'accepted' && appt.paymentStatus === 'paid' && (() => {
+                                            const { canJoin, label } = getJoinState();
+                                            return (
+                                                <button
+                                                    onClick={() => canJoin && startTelemedicine(appt)}
+                                                    disabled={!canJoin}
+                                                    className={`px-4 py-2 rounded-lg transition text-sm font-bold border ${
+                                                        canJoin
+                                                            ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border-indigo-100'
+                                                            : 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed'
+                                                    }`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            );
+                                        })()}
                                         {appt.status !== 'cancelled' && (
                                             <>
                                                 <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition text-sm font-bold border border-slate-100">Reschedule</button>

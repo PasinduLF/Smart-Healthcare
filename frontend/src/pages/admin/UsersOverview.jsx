@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { getAppointmentServiceUrl, getDoctorServiceUrl, getPatientServiceUrl } from '../../config/api';
 import { Users, ShieldCheck, Activity, Search } from 'lucide-react';
 
 export default function UsersOverview() {
@@ -14,10 +15,10 @@ export default function UsersOverview() {
             try {
                 const config = { headers: { Authorization: `Bearer ${token}` } };
                 const [pRes, dRes, aRes, pendRes] = await Promise.all([
-                    axios.get('http://localhost:3000/api/patients/stats', config),
-                    axios.get('http://localhost:3000/api/doctors/stats', config),
-                    axios.get('http://localhost:3000/api/appointments/stats', config),
-                    axios.get('http://localhost:3000/api/doctors/pending', config)
+                    axios.get(getPatientServiceUrl('/stats'), config),
+                    axios.get(getDoctorServiceUrl('/stats'), config),
+                    axios.get(getAppointmentServiceUrl('/stats'), config),
+                    axios.get(getDoctorServiceUrl('/pending'), config)
                 ]);
                 
                 setStats({
@@ -37,7 +38,7 @@ export default function UsersOverview() {
 
     const handleVerify = async (doctorId) => {
         try {
-            await axios.put(`http://localhost:3000/api/doctors/verify/${doctorId}`, {}, {
+            await axios.put(getDoctorServiceUrl(`/verify/${doctorId}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setPendingDoctors(pendingDoctors.filter(d => d._id !== doctorId));

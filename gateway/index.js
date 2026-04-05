@@ -45,38 +45,38 @@ app.get('/health', (req, res) => {
 
 // Admin specific routes from services (protected by role)
 app.get('/api/patients/stats', authenticateToken, requireRole(['admin']), createProxyMiddleware({
-    target: process.env.PATIENT_SERVICE_URL || 'http://localhost:3001',
+    target: process.env.PATIENT_SERVICE_URL || 'https://smart-healthcare-lckn.onrender.com',
     changeOrigin: true,
     pathRewrite: () => '/stats'
 }));
 
 app.get('/api/doctors/stats', authenticateToken, requireRole(['admin']), createProxyMiddleware({
-    target: process.env.DOCTOR_SERVICE_URL || 'http://localhost:3002',
+    target: process.env.DOCTOR_SERVICE_URL || 'https://smart-healthcare-doctor-service.onrender.com',
     changeOrigin: true,
     pathRewrite: () => '/stats'
 }));
 
 app.get('/api/doctors/pending', authenticateToken, requireRole(['admin']), createProxyMiddleware({
-    target: process.env.DOCTOR_SERVICE_URL || 'http://localhost:3002',
+    target: process.env.DOCTOR_SERVICE_URL || 'https://smart-healthcare-doctor-service.onrender.com',
     changeOrigin: true,
     pathRewrite: () => '/pending'
 }));
 
 app.put('/api/doctors/verify/:id', authenticateToken, requireRole(['admin']), createProxyMiddleware({
-    target: process.env.DOCTOR_SERVICE_URL || 'http://localhost:3002',
+    target: process.env.DOCTOR_SERVICE_URL || 'https://smart-healthcare-doctor-service.onrender.com',
     changeOrigin: true,
     pathRewrite: { '^/api/doctors': '' }
 }));
 
 // Patient Service (Public routes like login/register)
 app.use('/api/patients', createProxyMiddleware({
-    target: process.env.PATIENT_SERVICE_URL || 'http://localhost:3001',
+    target: process.env.PATIENT_SERVICE_URL || 'https://smart-healthcare-lckn.onrender.com',
     changeOrigin: true,
 }));
 
 // Doctor Service (Public routes like list/login/register)
 app.use('/api/doctors', createProxyMiddleware({
-    target: process.env.DOCTOR_SERVICE_URL || 'http://localhost:3002',
+    target: process.env.DOCTOR_SERVICE_URL || 'https://smart-healthcare-doctor-service.onrender.com',
     changeOrigin: true,
 }));
 
@@ -118,7 +118,7 @@ app.use('/api/ai/support', createProxyMiddleware({
 }));
 
 app.use('/api/ai', authenticateToken, createProxyMiddleware({
-    target: process.env.AI_SERVICE_URL || 'http://localhost:3007',
+    target: process.env.AI_SERVICE_URL || 'https://smart-healthcare-1-morq.onrender.com',
     changeOrigin: true,
 }));
 
