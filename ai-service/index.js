@@ -346,7 +346,17 @@ Rules:
     } catch (err) {
         console.error('CareBot Error:', err.message);
         console.error('CareBot Full Error:', err);
-        return res.status(500).json({ error: 'Failed to analyze symptoms. Please try again.' });
+        
+        // Fallback response if AI fails
+        const fallbackResult = {
+            severity: 'low',
+            possibleConditions: ['Unable to analyze - please consult a doctor'],
+            recommendedSpecialty: 'General Physician',
+            advice: ['Consult a healthcare professional for proper diagnosis', 'Monitor your symptoms closely'],
+            urgentSigns: ['Severe pain', 'High fever', 'Difficulty breathing']
+        };
+        
+        return res.json(fallbackResult);
     }
 });
 
