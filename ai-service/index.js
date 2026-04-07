@@ -295,11 +295,22 @@ Rules:
             return (await result.response).text().trim();
         });
 
-        if (rawText.startsWith('```')) {
-            rawText = rawText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+        // Strip markdown code fences
+        if (rawText.includes('```')) {
+            rawText = rawText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
         }
 
-        const parsed = JSON.parse(rawText);
+        // Extract JSON object if there's surrounding text
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error(`No JSON found in response: ${rawText.substring(0, 200)}`);
+        rawText = jsonMatch[0];
+
+        let parsed;
+        try {
+            parsed = JSON.parse(rawText);
+        } catch (parseErr) {
+            throw new Error(`JSON parse failed: ${parseErr.message} | Raw: ${rawText.substring(0, 200)}`);
+        }
 
         // Enforce allowed specialty
         if (!ALLOWED_SPECIALTIES.includes(parsed.recommendedSpecialty)) {
@@ -334,6 +345,7 @@ Rules:
         return res.json(result);
     } catch (err) {
         console.error('CareBot Error:', err.message);
+        console.error('CareBot Full Error:', err);
         return res.status(500).json({ error: 'Failed to analyze symptoms. Please try again.' });
     }
 });
