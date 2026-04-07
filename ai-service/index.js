@@ -261,14 +261,14 @@ app.delete('/history/patient/:patientId', async (req, res) => {
     }
 });
 
-// --- CAREBOT: Gemini-powered symptom chat ---
+// --- CAREBOT: Groq-powered symptom chat ---
 app.post('/carebot', async (req, res) => {
     const { symptoms, patientId } = req.body;
     if (!symptoms) return res.status(400).json({ error: 'Symptoms are required' });
 
-    // Check if Gemini is available
-    if (!process.env.GEMINI_API_KEY) {
-        console.error('CareBot Error: GEMINI_API_KEY not set');
+    // Check if Groq is available
+    if (!process.env.GROQ_API_KEY) {
+        console.error('CareBot Error: GROQ_API_KEY not set');
         return res.json({
             severity: 'low',
             possibleConditions: ['AI service temporarily unavailable'],
@@ -302,10 +302,18 @@ Rules:
 - urgentSigns: 2-3 warning signs to watch for`;
 
     try {
-        let rawText = await runWithGeminiModelFallback(async (model) => {
-            const result = await model.generateContent(prompt);
-            return (await result.response).text().trim();
+        console.log('CareBot: Calling Groq API for symptoms:', symptoms.substring(0, 50));
+        
+        const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+        const completion = await groq.chat.completions.create({
+            messages: [{ role: 'user', content: prompt }],
+            model: 'llama3-8b-8192',
+            max_tokens: 512,
+            temperature: 0.4
         });
+
+        let rawText = completion.choices[0]?.message?.content?.trim() || '';
+        console.log('CareBot: Groq raw response:', rawText.substring(0, 200));
 
         // Strip markdown code fences
         if (rawText.includes('```')) {
@@ -314,14 +322,20 @@ Rules:
 
         // Extract JSON object if there's surrounding text
         const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error(`No JSON found in response: ${rawText.substring(0, 200)}`);
+        if (!jsonMatch) {
+            console.error('CareBot: No JSON found in response:', rawText.substring(0, 200));
+            throw new Error('No JSON found in response');
+        }
         rawText = jsonMatch[0];
 
         let parsed;
         try {
             parsed = JSON.parse(rawText);
+            console.log('CareBot: Successfully parsed JSON');
         } catch (parseErr) {
-            throw new Error(`JSON parse failed: ${parseErr.message} | Raw: ${rawText.substring(0, 200)}`);
+            console.error('CareBot: JSON parse failed:', parseErr.message);
+            console.error('CareBot: Raw text was:', rawText.substring(0, 200));
+            throw parseErr;
         }
 
         // Enforce allowed specialty
