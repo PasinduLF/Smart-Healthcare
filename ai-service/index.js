@@ -266,6 +266,18 @@ app.post('/carebot', async (req, res) => {
     const { symptoms, patientId } = req.body;
     if (!symptoms) return res.status(400).json({ error: 'Symptoms are required' });
 
+    // Check if Gemini is available
+    if (!process.env.GEMINI_API_KEY) {
+        console.error('CareBot Error: GEMINI_API_KEY not set');
+        return res.json({
+            severity: 'low',
+            possibleConditions: ['AI service temporarily unavailable'],
+            recommendedSpecialty: 'General Physician',
+            advice: ['Please consult a healthcare professional directly', 'Monitor your symptoms'],
+            urgentSigns: ['Severe symptoms', 'Sudden changes', 'Difficulty breathing']
+        });
+    }
+
     const ALLOWED_SPECIALTIES = [
         'General Physician', 'Dentist', 'ENT Specialist', 'Dermatologist',
         'Cardiologist', 'Neurologist', 'Orthopedic Surgeon', 'Pediatrician', 'Gynecologist'
