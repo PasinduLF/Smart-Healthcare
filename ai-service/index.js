@@ -239,6 +239,109 @@ app.get('/history/:patientId', async (req, res) => {
     }
 });
 
+// --- DELETE a single symptom check ---
+app.delete('/history/:id', async (req, res) => {
+    try {
+        await SymptomCheck.findByIdAndDelete(req.params.id);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Failed to delete symptom check:', err);
+        res.status(500).json({ error: 'Failed to delete' });
+    }
+});
+
+// --- DELETE all symptom checks for a patient ---
+app.delete('/history/patient/:patientId', async (req, res) => {
+    try {
+        await SymptomCheck.deleteMany({ patientId: req.params.patientId });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Failed to clear symptom history:', err);
+        res.status(500).json({ error: 'Failed to clear history' });
+    }
+});
+
+// --- CAREBOT: Groq-powered symptom chat ---
+app.post('/carebot', async (req, res) => {
+    const { symptoms, patientId } = req.body;
+    if (!symptoms) return res.status(400).json({ error: 'Symptoms are required' });
+
+    const ALLOWED_SPECIALTIES = [
+        'General Physician', 'Dentist', 'ENT Specialist', 'Dermatologist',
+        'Cardiologist', 'Neurologist', 'Orthopedic Surgeon', 'Pediatrician', 'Gynecologist'
+    ];
+
+    const prompt = `You are CareBot, a medical AI symptom checker. A patient reports: "${symptoms}"
+
+Respond ONLY with valid JSON (no markdown, no code fences):
+{
+  "severity": "low|medium|high",
+  "possibleConditions": ["condition1", "condition2"],
+  "recommendedSpecialty": "one from the allowed list",
+  "advice": ["advice1", "advice2"],
+  "urgentSigns": ["sign1", "sign2"]
+}
+
+Rules:
+- severity must be exactly: low, medium, or high
+- recommendedSpecialty MUST be one of: ${ALLOWED_SPECIALTIES.join(', ')}. If unsure, use "General Physician"
+- possibleConditions: 2-4 items
+- advice: 2-4 practical tips
+- urgentSigns: 2-3 warning signs to watch for`;
+
+    try {
+        const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+        const completion = await groq.chat.completions.create({
+            messages: [{ role: 'user', content: prompt }],
+            model: 'llama3-8b-8192',
+            max_tokens: 512,
+            temperature: 0.4
+        });
+
+        let rawText = completion.choices[0]?.message?.content?.trim() || '';
+        if (rawText.startsWith('```')) {
+            rawText = rawText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+        }
+
+        const parsed = JSON.parse(rawText);
+
+        // Enforce allowed specialty
+        if (!ALLOWED_SPECIALTIES.includes(parsed.recommendedSpecialty)) {
+            parsed.recommendedSpecialty = 'General Physician';
+        }
+
+        const result = {
+            severity: parsed.severity || 'low',
+            possibleConditions: parsed.possibleConditions || [],
+            recommendedSpecialty: parsed.recommendedSpecialty,
+            advice: parsed.advice || [],
+            urgentSigns: parsed.urgentSigns || []
+        };
+
+        // Save to history
+        if (patientId) {
+            try {
+                await SymptomCheck.create({
+                    patientId,
+                    symptoms,
+                    severity: result.severity === 'medium' ? 'moderate' : result.severity,
+                    recommendedSpecialty: result.recommendedSpecialty,
+                    recommendations: result.advice,
+                    whenToSeekEmergencyCare: result.urgentSigns,
+                    fullAnalysis: JSON.stringify(result)
+                });
+            } catch (saveErr) {
+                console.error('Failed to save carebot history:', saveErr);
+            }
+        }
+
+        return res.json(result);
+    } catch (err) {
+        console.error('CareBot Error:', err.message);
+        return res.status(500).json({ error: 'Failed to analyze symptoms. Please try again.' });
+    }
+});
+
 // --- Health Check ---
 app.get('/health', (req, res) => {
     res.json({ status: 'AI Symptom Checker Service is running', geminiEnabled: !!process.env.GEMINI_API_KEY });
