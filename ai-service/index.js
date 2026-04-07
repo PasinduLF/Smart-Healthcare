@@ -261,7 +261,7 @@ app.delete('/history/patient/:patientId', async (req, res) => {
     }
 });
 
-// --- CAREBOT: Groq-powered symptom chat ---
+// --- CAREBOT: Gemini-powered symptom chat ---
 app.post('/carebot', async (req, res) => {
     const { symptoms, patientId } = req.body;
     if (!symptoms) return res.status(400).json({ error: 'Symptoms are required' });
@@ -290,15 +290,11 @@ Rules:
 - urgentSigns: 2-3 warning signs to watch for`;
 
     try {
-        const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-        const completion = await groq.chat.completions.create({
-            messages: [{ role: 'user', content: prompt }],
-            model: 'llama3-8b-8192',
-            max_tokens: 512,
-            temperature: 0.4
+        let rawText = await runWithGeminiModelFallback(async (model) => {
+            const result = await model.generateContent(prompt);
+            return (await result.response).text().trim();
         });
 
-        let rawText = completion.choices[0]?.message?.content?.trim() || '';
         if (rawText.startsWith('```')) {
             rawText = rawText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
         }
