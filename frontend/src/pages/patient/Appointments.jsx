@@ -1,7 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { getAppointmentServiceUrl } from '../../config/api';
+
+function getJoinState(date, time) {
+    if (!date || !time) return { canJoin: true, label: 'Join Call' };
+
+    const parseTime = (t) => {
+        const twelve = t.match(/^(\d{1,2}):(\d{2})\s*([aApP][mM])$/);
+        if (twelve) {
+            let h = Number(twelve[1]) % 12;
+            if (twelve[3].toUpperCase() === 'PM') h += 12;
+            return h * 60 + Number(twelve[2]);
+        }
+        const twenty = t.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+        if (twenty) return Number(twenty[1]) * 60 + Number(twenty[2]);
+        return null;
+    };
+
+    const slotMinutes = parseTime(time.split('-')[0].trim());
+    if (slotMinutes === null) return { canJoin: true, label: 'Join Call' };
+
+    const now = new Date();
+    const slotDate = new Date(`${date}T00:00:00`);
+    slotDate.setMinutes(slotDate.getMinutes() + slotMinutes);
+
+    const diffMs = now - slotDate;
+    const EARLY_MS = 5 * 60 * 1000;
+    const WINDOW_MS = 30 * 60 * 1000;
+
+    if (diffMs < -EARLY_MS) {
+        const startTime = slotDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return { canJoin: false, label: `Starts at ${startTime}` };
+    }
+    if (diffMs > WINDOW_MS) {
+        return { canJoin: false, label: 'Slot Ended' };
+    }
+    return { canJoin: true, label: 'Join Call' };
+}
 
 export default function PatientAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
@@ -9,12 +46,18 @@ export default function PatientAppointments({ setActiveCall }) {
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [rescheduleData, setRescheduleData] = useState({ id: null, date: '', time: '' });
+    const [, setTick] = useState(0);
+
+    useEffect(() => {
+        const id = setInterval(() => setTick(t => t + 1), 30000);
+        return () => clearInterval(id);
+    }, []);
 
     useEffect(() => {
         const fetchAppointments = async () => {
             if (!user?.id) return;
             try {
-                const apptRes = await axios.get(`http://localhost:3000/api/appointments/patient/${user.id}`, { 
+                const apptRes = await axios.get(getAppointmentServiceUrl(`/patient/${user.id}`), {
                     headers: { Authorization: `Bearer ${token}` } 
                 });
                 setAppointments(apptRes.data);
@@ -29,7 +72,7 @@ export default function PatientAppointments({ setActiveCall }) {
 
     const handleCancelAppointment = async (apptId) => {
         try {
-            await axios.put(`http://localhost:3000/api/appointments/cancel/${apptId}`, {}, {
+            await axios.put(getAppointmentServiceUrl(`/cancel/${apptId}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAppointments(appointments.map(a => a._id === apptId ? { ...a, status: 'cancelled' } : a));
@@ -42,7 +85,7 @@ export default function PatientAppointments({ setActiveCall }) {
     const handleReschedule = async (apptId) => {
         if (!rescheduleData.date || !rescheduleData.time) return alert("Please select date and time");
         try {
-            await axios.put(`http://localhost:3000/api/appointments/reschedule/${apptId}`, 
+            await axios.put(getAppointmentServiceUrl(`/reschedule/${apptId}`),
                 { date: rescheduleData.date, time: rescheduleData.time }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -55,8 +98,8 @@ export default function PatientAppointments({ setActiveCall }) {
         }
     };
 
-    const startTelemedicine = (apptId) => {
-        setActiveCall(`channel-${apptId}`);
+    const startTelemedicine = (appt) => {
+        setActiveCall({ id: appt._id, date: appt.date, time: appt.time });
         navigate('/patient/telemedicine');
     };
 
@@ -87,9 +130,22 @@ export default function PatientAppointments({ setActiveCall }) {
                             <div className="flex gap-2">
                                 {appt.status !== 'cancelled' && appt.status !== 'rejected' && rescheduleData.id !== appt._id && (
                                     <>
-                                        {appt.status === 'accepted' && (
-                                            <button onClick={() => startTelemedicine(appt._id)} className="px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition text-sm font-medium">Join Call</button>
-                                        )}
+                                {appt.status === 'accepted' && (() => {
+                                            const { canJoin, label } = getJoinState(appt.date, appt.time);
+                                            return (
+                                                <button
+                                                    onClick={() => canJoin && startTelemedicine(appt)}
+                                                    disabled={!canJoin}
+                                                    className={`px-4 py-2 rounded-lg transition text-sm font-medium ${
+                                                        canJoin
+                                                            ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                                                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                    }`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            );
+                                        })()}
                                         <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition text-sm font-medium">Reschedule</button>
                                         <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-coral-50 text-coral-600 rounded-lg hover:bg-coral-100 transition text-sm font-medium">Cancel Appt</button>
                                         <button className="px-4 py-2 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition text-sm font-medium">Pay Now</button>

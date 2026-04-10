@@ -15,7 +15,7 @@ export default function SearchDoctors() {
     useEffect(() => {
         const fetchDoctors = async () => {
             try {
-                const docRes = await axios.get('http://localhost:3000/api/doctors/list', { 
+                const docRes = await axios.get(getDoctorServiceUrl('/list'), {
                     headers: { Authorization: `Bearer ${token}` } 
                 });
                 setDoctors(docRes.data);

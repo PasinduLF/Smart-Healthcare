@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { getPaymentServiceUrl } from '../../config/api';
 import { DollarSign, Download, Filter } from 'lucide-react';
 
 export default function AdminPayments() {
@@ -12,7 +13,7 @@ export default function AdminPayments() {
         const fetchTransactions = async () => {
             try {
                 if (!token) return;
-                const res = await axios.get('http://localhost:3000/api/payments/transactions', {
+                const res = await axios.get(getPaymentServiceUrl('/transactions'), {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setTransactions(res.data);

@@ -15,14 +15,11 @@ export default function Login() {
         e.preventDefault();
         setError('');
         
-        if (email.includes('admin')) {
-            navigate('/admin');
-            return;
-        }
-
         const res = await login(email, password, role);
         if (res.success) {
-            navigate(role === 'doctor' ? '/doctor' : '/patient');
+            if (res.role === 'admin') navigate('/admin');
+            else if (res.role === 'doctor') navigate('/doctor');
+            else navigate('/patient');
         } else {
             setError(res.error || 'Login failed');
         }

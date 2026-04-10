@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 // Components
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import SupportChat from './components/SupportChat';
 
 // Pages
 import Home from './pages/Home';
@@ -19,13 +20,14 @@ import SearchDoctors from './pages/patient/SearchDoctors';
 import AIAnalyzer from './pages/patient/AIAnalyzer';
 import HealthProfile from './pages/patient/HealthProfile';
 import MedicalReports from './pages/patient/MedicalReports';
-import Profile from './pages/patient/Profile';
 import Prescriptions from './pages/patient/Prescriptions';
 import Telemedicine from './pages/patient/Telemedicine';
+import TransactionHistory from './pages/patient/TransactionHistory';
 import BookAppointment from './pages/BookAppointment';
 import MyAppointments from './pages/MyAppointments';
 import PatientPaymentService from './pages/PatientPaymentService';
 import PaymentSuccess from './pages/PaymentSuccess';
+import MyProfile from './pages/MyProfile';
 
 // Doctor Pages
 import DoctorSchedule from './pages/doctor/DoctorSchedule';
@@ -34,8 +36,10 @@ import DoctorPrescriptions from './pages/doctor/Prescriptions';
 import DoctorTelemedicine from './pages/doctor/Telemedicine';
 import DoctorPatientReports from './pages/doctor/PatientReports';
 import DoctorDashboard from './pages/doctor/Dashboard';
+import ConsultationFeeCalulation from './pages/doctor/ConsultationFeeCalulation';
 
 // Admin Pages
+import AdminDashboard from './pages/admin/AdminDashboard';
 import UsersOverview from './pages/admin/UsersOverview';
 import AdminPayments from './pages/admin/Payments';
 import AdminSettings from './pages/admin/Settings';
@@ -45,14 +49,28 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useState } from 'react';
 
+// --- Protected Route Component ---
+const ProtectedRoute = ({ children, allowedRoles }) => {
+    const { user, token } = useAuth();
+    
+    if (!token) return <Navigate to="/login" replace />;
+    if (allowedRoles && !allowedRoles.includes(user?.role)) {
+        return <Navigate to="/" replace />;
+    }
+    
+    return children;
+};
+
 function AppContent() {
     const { user } = useAuth();
+    // activeCall: { id, date, time } | null
     const [activeCall, setActiveCall] = useState(null);
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
             <Navbar />
-            
+            <SupportChat />
+
             <main className="flex-grow pt-20">
                 <Routes>
                     <Route path="/" element={<Home />} />
@@ -61,9 +79,15 @@ function AppContent() {
                     <Route path="/contact" element={<Contact />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
-                    
+
                     {/* Patient Routes */}
-                    <Route path="/patient" element={<div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500"><Outlet /></div>}>
+                    <Route path="/patient" element={
+                        <ProtectedRoute allowedRoles={['patient']}>
+                            <div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500">
+                                <Outlet />
+                            </div>
+                        </ProtectedRoute>
+                    }>
                         <Route index element={<Navigate to="search" replace />} />
                         <Route path="search" element={<SearchDoctors />} />
                         <Route path="book/:doctorId" element={<BookAppointment />} />
@@ -71,7 +95,8 @@ function AppContent() {
                         <Route path="payment-success" element={<PaymentSuccess />} />
                         <Route path="appointments" element={<MyAppointments setActiveCall={setActiveCall} />} />
                         <Route path="telemedicine" element={<Telemedicine activeCall={activeCall} setActiveCall={setActiveCall} />} />
-                        <Route path="profile" element={<Profile />} />
+                        <Route path="profile" element={<MyProfile />} />
+                        <Route path="transactions" element={<TransactionHistory />} />
                         <Route path="health" element={<HealthProfile />} />
                         <Route path="prescriptions" element={<Prescriptions />} />
                         <Route path="reports" element={<MedicalReports />} />
@@ -79,8 +104,16 @@ function AppContent() {
                     </Route>
 
                     {/* Doctor Routes */}
-                    <Route path="/doctor" element={<div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500"><Outlet /></div>}>
+                    <Route path="/doctor" element={
+                        <ProtectedRoute allowedRoles={['doctor']}>
+                            <div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500">
+                                <Outlet />
+                            </div>
+                        </ProtectedRoute>
+                    }>
                         <Route index element={<Navigate to="appointments" replace />} />
+                        <Route path="profile" element={<MyProfile />} />
+                        <Route path="consultation-fee" element={<ConsultationFeeCalulation />} />
                         <Route path="schedule" element={<DoctorSchedule />} />
                         <Route path="appointments" element={<DoctorAppointments setActiveCall={setActiveCall} />} />
                         <Route path="telemedicine" element={<DoctorTelemedicine activeCall={activeCall} setActiveCall={setActiveCall} />} />
@@ -90,8 +123,15 @@ function AppContent() {
                     </Route>
 
                     {/* Admin Routes */}
-                    <Route path="/admin" element={<div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500"><Outlet /></div>}>
-                        <Route index element={<Navigate to="users" replace />} />
+                    <Route path="/admin" element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                            <div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500">
+                                <Outlet />
+                            </div>
+                        </ProtectedRoute>
+                    }>
+                        <Route index element={<AdminDashboard />} />
+                        <Route path="profile" element={<MyProfile />} />
                         <Route path="users" element={<UsersOverview />} />
                         <Route path="payments" element={<AdminPayments />} />
                         <Route path="emails" element={<EmailLogs />} />

@@ -1,15 +1,42 @@
 import React, { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
+import { getPaymentServiceUrl } from '../config/api';
 
 export default function PaymentSuccess() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const { token } = useAuth();
 
     useEffect(() => {
-        const timer = setTimeout(() => {
-            navigate('/patient/appointments', { state: { refresh: true } });
-        }, 1600);
-        return () => clearTimeout(timer);
-    }, [navigate]);
+        let mounted = true;
+        let timer;
+
+        const syncAndRedirect = async () => {
+            const orderId = new URLSearchParams(location.search).get('order_id');
+            if (orderId && token) {
+                try {
+                    await axios.post(getPaymentServiceUrl('/payhere/confirm'), { orderId }, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                } catch (err) {
+                    console.error('Failed to confirm payment after return', err);
+                }
+            }
+
+            if (!mounted) return;
+            timer = setTimeout(() => {
+                navigate('/patient/appointments', { state: { refresh: true } });
+            }, 1400);
+        };
+
+        syncAndRedirect();
+        return () => {
+            mounted = false;
+            if (timer) clearTimeout(timer);
+        };
+    }, [location.search, navigate, token]);
 
     return (
         <div className="relative overflow-hidden rounded-2xl border bg-white p-10 text-center">

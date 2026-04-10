@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { User, ShieldAlert } from 'lucide-react';
+import { getPatientServiceUrl } from '../../config/api';
 
 export default function Profile() {
     const { user, token } = useAuth();
@@ -11,9 +13,12 @@ export default function Profile() {
 
     useEffect(() => {
         const fetchProfile = async () => {
-            if (!user?.id) return;
+            if (!user?.id) {
+                setLoading(false);
+                return;
+            }
             try {
-                const res = await axios.get(`http://localhost:3000/api/patients/profile/${user.id}`, { 
+                const res = await axios.get(getPatientServiceUrl(`/profile/${user.id}`), { 
                     headers: { Authorization: `Bearer ${token}` } 
                 });
                 setProfileData({
@@ -34,7 +39,7 @@ export default function Profile() {
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
         try {
-            await axios.put(`http://localhost:3000/api/patients/profile/${user.id}`, profileData, {
+            await axios.put(getPatientServiceUrl(`/profile/${user.id}`), profileData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             alert("Patient details updated successfully!");
@@ -124,6 +129,20 @@ export default function Profile() {
                     Save Patient Details
                 </button>
             </form>
+
+            <div className="bg-white border rounded-xl p-5 space-y-4">
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Transaction History</h3>
+                    <p className="text-sm text-gray-500">Open your separate page to view previous transactions.</p>
+                </div>
+
+                <Link
+                    to="/patient/transactions"
+                    className="inline-flex items-center justify-center px-5 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition"
+                >
+                    Open Transaction History
+                </Link>
+            </div>
         </div>
     );
 }

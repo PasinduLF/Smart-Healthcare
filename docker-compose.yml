@@ -2,16 +2,16 @@ services:
   gateway:
     build: ./gateway
     ports:
-      - "3000:3000"
+      - "${PORT_GATEWAY}:${PORT_GATEWAY}"
     environment:
       - PORT=3000
-      - PATIENT_SERVICE_URL=http://patient-service:3001
-      - DOCTOR_SERVICE_URL=http://doctor-service:3002
+      - PATIENT_SERVICE_URL=https://smart-healthcare-lckn.onrender.com
+      - DOCTOR_SERVICE_URL=https://smart-healthcare-doctor-service.onrender.com
       - APPOINTMENT_SERVICE_URL=http://appointment-service:3003
       - TELEMEDICINE_SERVICE_URL=http://telemedicine-service:3004
       - PAYMENT_SERVICE_URL=http://payment-service:3005
       - NOTIFICATION_SERVICE_URL=http://notification-service:3006
-      - AI_SERVICE_URL=http://ai-service:3007
+      - AI_SERVICE_URL=https://smart-healthcare-1-morq.onrender.com
       - JWT_SECRET=smarthealthcare_supersecret_key
     depends_on:
       - patient-service
@@ -21,53 +21,67 @@ services:
   patient-service:
     build: ./patient-service
     ports:
-      - "3001:3001"
+      - "${PORT_PATIENT}:${PORT_PATIENT}"
     environment:
-      - PORT=3001
-      - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
-      - JWT_SECRET=smarthealthcare_supersecret_key
+      - PORT=${PORT_PATIENT}
+      - MONGO_URI=${MONGO_URI_BASE}
+      - JWT_SECRET=${JWT_SECRET}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+
   doctor-service:
     build: ./doctor-service
     ports:
-      - "3002:3002"
+      - "${PORT_DOCTOR}:${PORT_DOCTOR}"
     environment:
-      - PORT=3002
-      - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
-      - JWT_SECRET=smarthealthcare_supersecret_key
+      - PORT=${PORT_DOCTOR}
+      - MONGO_URI=${MONGO_URI_BASE}
+      - JWT_SECRET=${JWT_SECRET}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
 
   appointment-service:
     build: ./appointment-service
     ports:
-      - "3003:3003"
+      - "${PORT_APPOINTMENT}:${PORT_APPOINTMENT}"
     environment:
       - PORT=3003
       - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
       - NOTIFICATION_SERVICE_URL=http://notification-service:3006
       - PATIENT_SERVICE_URL=http://patient-service:3001
       - DOCTOR_SERVICE_URL=http://doctor-service:3002
+      - PORT=${PORT_APPOINTMENT}
+      - MONGO_URI=${MONGO_URI_BASE}
 
   telemedicine-service:
     build: ./telemedicine-service
     ports:
-      - "3004:3004"
+      - "${PORT_TELEMEDICINE}:${PORT_TELEMEDICINE}"
     environment:
       - PORT=3004
+      - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
+      - AGORA_APP_ID=ebd1cd2c36ac4a3394dc797349935d6f
+      - AGORA_APP_CERTIFICATE=45a454bb8c02433d91ad726c6e2c71c7
+      - AGORA_TOKEN_EXPIRY_SECONDS=3600
 
   payment-service:
     build: ./payment-service
     ports:
-      - "3005:3005"
+      - "${PORT_PAYMENT}:${PORT_PAYMENT}"
     environment:
       - PORT=3005
       - PAYHERE_MERCHANT_ID=1234712
-      - PAYHERE_MERCHANT_SECRET=MTY1OTE5NjAxNzMzNjU1MDk2MDEyODY4NzAxNTAyMTYyNDQyODIz
-      - FRONTEND_BASE_URL=https://www.smarthealthcar.me
+      - PAYHERE_MERCHANT_SECRET=MTg4NDA5NTM2ODI4NDIyOTk4NjgxNjkyODY4MTYxMjgwNzUxNjY2Mg==
+      - FRONTEND_BASE_URL=https://smarthealthcar.me
+      - PAYHERE_RETURN_BASE_URL=https://smarthealthcar.me
       - PAYHERE_NOTIFY_URL=https://smart-healthcare-payment.onrender.com/payhere/notify
 
   notification-service:
     build: ./notification-service
     ports:
-      - "3006:3006"
+      - "${PORT_NOTIFICATION}:${PORT_NOTIFICATION}"
     environment:
       - PORT=3006
       - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
@@ -82,8 +96,9 @@ services:
   ai-service:
     build: ./ai-service
     ports:
-      - "3007:3007"
+      - "${PORT_AI}:${PORT_AI}"
     environment:
       - PORT=3007
-      - GEMINI_API_KEY=AIzaSyBVihJ6P8G457ueV77ip-3xtsCeXGvibUo
       - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/smart-health-ai?appName=Cluster0
+      - GEMINI_API_KEY=AIzaSyBVihJ6P8G457ueV77ip-3xtsCeXGvibUo
+      - GROQ_API_KEY=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

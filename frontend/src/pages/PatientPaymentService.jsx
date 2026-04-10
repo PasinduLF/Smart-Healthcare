@@ -3,7 +3,7 @@ import { ArrowLeft, CreditCard } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL } from '../config/api';
+import { getDoctorServiceUrl, getPaymentServiceUrl } from '../config/api';
 
 const normalizeTime = (value) => {
 	if (!value) return '';
@@ -53,7 +53,7 @@ export default function PatientPaymentService() {
 		const loadFee = async () => {
 			if (!doctorId) return;
 			try {
-				const res = await axios.get(`${API_BASE_URL}/api/doctors/profile/${doctorId}`, {
+				const res = await axios.get(getDoctorServiceUrl(`/profile/${doctorId}`), {
 					headers: token ? { Authorization: `Bearer ${token}` } : undefined
 				});
 				const fee = Number(res.data?.consultationFee) || 0;
@@ -72,7 +72,7 @@ export default function PatientPaymentService() {
 
 		setPaying(true);
 		try {
-			const res = await axios.post(`${API_BASE_URL}/api/payments/payhere/checkout`, {
+			const res = await axios.post(getPaymentServiceUrl('/payhere/checkout'), {
 				appointmentId,
 				patientId: user.id,
 				doctorId,
@@ -83,7 +83,8 @@ export default function PatientPaymentService() {
 				doctorName,
 				customerName: user?.name || 'Patient',
 				customerEmail: user?.email || 'patient@example.com',
-				customerPhone: user?.contactNumber || '0000000000'
+				customerPhone: user?.contactNumber || '0000000000',
+				frontendOrigin: window.location.origin
 			}, {
 				headers: { Authorization: `Bearer ${token}` }
 			});

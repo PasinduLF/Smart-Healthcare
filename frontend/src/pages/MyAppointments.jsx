@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL } from '../config/api';
+import { getAppointmentServiceUrl, getDoctorServiceUrl, getTelemedicineServiceUrl } from '../config/api';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { MessageSquareWarning } from 'lucide-react';
 
@@ -73,6 +73,31 @@ const buildSlotsForDay = (dayAvailability) => {
     return Array.from(new Set(slots)).sort();
 };
 
+const normalizeListPayload = (payload, candidateKeys = []) => {
+    if (Array.isArray(payload)) return payload;
+    if (payload && typeof payload === 'object') {
+        for (const key of candidateKeys) {
+            if (Array.isArray(payload[key])) return payload[key];
+        }
+    }
+    return [];
+};
+
+const parseObjectIdTimestamp = (value) => {
+    if (typeof value !== 'string' || !/^[0-9a-fA-F]{24}$/.test(value)) return 0;
+    return parseInt(value.slice(0, 8), 16) * 1000;
+};
+
+const getAppointmentCreatedTimestamp = (appointment) => {
+    if (!appointment) return 0;
+    const createdAt = appointment.createdAt || appointment.updatedAt;
+    if (createdAt) {
+        const parsed = Date.parse(createdAt);
+        if (!Number.isNaN(parsed)) return parsed;
+    }
+    return parseObjectIdTimestamp(appointment._id);
+};
+
 export default function MyAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
     const navigate = useNavigate();
@@ -83,21 +108,33 @@ export default function MyAppointments({ setActiveCall }) {
     const [loading, setLoading] = useState(true);
     const [rescheduleData, setRescheduleData] = useState({ id: null, date: '', time: '' });
     const [doctorAppointments, setDoctorAppointments] = useState([]);
+    const [chatHistories, setChatHistories] = useState({});
+    const [expandedChat, setExpandedChat] = useState(null);
+    const [, setTick] = useState(0);
+
+    // Re-render every 30s so join state stays current
+    useEffect(() => {
+        const id = setInterval(() => setTick(t => t + 1), 30000);
+        return () => clearInterval(id);
+    }, []);
 
     const fetchAll = useCallback(async () => {
         if (!user?.id || !token) return;
         try {
             const [docRes, apptRes] = await Promise.all([
-                axios.get(`${API_BASE_URL}/api/doctors/list`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_BASE_URL}/api/appointments/patient/${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
+                axios.get(getDoctorServiceUrl('/list'), { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(getAppointmentServiceUrl(`/patient/${user.id}`), { headers: { Authorization: `Bearer ${token}` } })
             ]);
 
-            setAppointments(apptRes.data);
-            setDoctorMap(docRes.data.reduce((acc, doc) => {
+            const doctors = normalizeListPayload(docRes.data, ['doctors', 'data']);
+            const patientAppointments = normalizeListPayload(apptRes.data, ['appointments', 'data']);
+
+            setAppointments(patientAppointments);
+            setDoctorMap(doctors.reduce((acc, doc) => {
                 acc[doc._id] = doc.name;
                 return acc;
             }, {}));
-            setDoctorAvailabilityMap(docRes.data.reduce((acc, doc) => {
+            setDoctorAvailabilityMap(doctors.reduce((acc, doc) => {
                 acc[doc._id] = doc.availability;
                 return acc;
             }, {}));
@@ -121,12 +158,21 @@ export default function MyAppointments({ setActiveCall }) {
         return () => clearTimeout(retry);
     }, [fetchAll, location.state, navigate]);
 
+    // Auto-expand chat for a just-completed call
+    useEffect(() => {
+        const completedId = location.state?.completedCall;
+        if (!completedId) return;
+        navigate('/patient/appointments', { replace: true, state: {} });
+        loadChat(completedId).then(() => setExpandedChat(completedId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.state?.completedCall]);
+
     const handleCancelAppointment = async (apptId) => {
         try {
-            await axios.put(`${API_BASE_URL}/api/appointments/cancel/${apptId}`, {}, {
+            await axios.put(getAppointmentServiceUrl(`/cancel/${apptId}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAppointments(appointments.map(a => a._id === apptId ? { ...a, status: 'cancelled' } : a));
+            setAppointments((prev) => normalizeListPayload(prev).map((a) => a._id === apptId ? { ...a, status: 'cancelled' } : a));
         } catch (err) {
             console.error(err);
             alert('Failed to cancel appointment');
@@ -136,10 +182,10 @@ export default function MyAppointments({ setActiveCall }) {
     const handleReschedule = async (apptId) => {
         if (!rescheduleData.date || !rescheduleData.time) return alert("Please select date and time");
         try {
-            await axios.put(`${API_BASE_URL}/api/appointments/reschedule/${apptId}`, { date: rescheduleData.date, time: rescheduleData.time }, {
+            await axios.put(getAppointmentServiceUrl(`/reschedule/${apptId}`), { date: rescheduleData.date, time: rescheduleData.time }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAppointments(appointments.map(a => a._id === apptId ? { ...a, date: rescheduleData.date, time: rescheduleData.time, status: 'pending' } : a));
+            setAppointments((prev) => normalizeListPayload(prev).map((a) => a._id === apptId ? { ...a, date: rescheduleData.date, time: rescheduleData.time, status: 'pending' } : a));
             setRescheduleData({ id: null, date: '', time: '' });
             alert('Appointment rescheduled and is pending approval!');
         } catch (err) {
@@ -148,8 +194,30 @@ export default function MyAppointments({ setActiveCall }) {
         }
     };
 
-    const startTelemedicine = (apptId) => {
-        if (setActiveCall) setActiveCall(`channel-${apptId}`);
+    const loadChat = async (apptId) => {
+        if (chatHistories[apptId] !== undefined) {
+            setExpandedChat(expandedChat === apptId ? null : apptId);
+            return;
+        }
+        if (!TELE_URL) {
+            setChatHistories(prev => ({ ...prev, [apptId]: [] }));
+            setExpandedChat(apptId);
+            return;
+        }
+        try {
+            const res = await fetch(`${TELE_URL}/session/${apptId}/chat`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined
+            });
+            const data = res.ok ? await res.json() : [];
+            setChatHistories(prev => ({ ...prev, [apptId]: data }));
+        } catch {
+            setChatHistories(prev => ({ ...prev, [apptId]: [] }));
+        }
+        setExpandedChat(apptId);
+    };
+
+    const startTelemedicine = (appt) => {
+        if (setActiveCall) setActiveCall({ id: appt._id, date: appt.date, time: appt.time });
         navigate('/patient/telemedicine');
     };
 
@@ -180,11 +248,11 @@ export default function MyAppointments({ setActiveCall }) {
         let isMounted = true;
         const fetchDoctorAppointments = async () => {
             try {
-                const res = await axios.get(`${API_BASE_URL}/api/appointments/doctor/${rescheduleTarget.doctorId}`, {
+                const res = await axios.get(getAppointmentServiceUrl(`/doctor/${rescheduleTarget.doctorId}`), {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (!isMounted) return;
-                setDoctorAppointments(res.data || []);
+                setDoctorAppointments(normalizeListPayload(res.data, ['appointments', 'data']));
             } catch (err) {
                 console.error('Failed to load doctor appointments', err);
             }
@@ -213,17 +281,29 @@ export default function MyAppointments({ setActiveCall }) {
         );
     }, [doctorAppointments, rescheduleData.date, rescheduleTarget]);
 
+    const activeAppointments = useMemo(
+        () => normalizeListPayload(appointments)
+            .filter((appt) => appt.status !== 'cancelled')
+            .sort((a, b) => {
+                const createdDiff = getAppointmentCreatedTimestamp(b) - getAppointmentCreatedTimestamp(a);
+                if (createdDiff !== 0) return createdDiff;
+                return String(b?._id || '').localeCompare(String(a?._id || ''));
+            }),
+        [appointments]
+    );
+
     if (loading) return <div className="text-center py-10 text-gray-400">Loading appointments...</div>;
 
     return (
         <div>
             <h2 className="text-xl font-semibold mb-6">Upcoming Appointments</h2>
             <div className="space-y-4">
-                {appointments.filter(appt => appt.status !== 'cancelled').length === 0 ? (
+                {activeAppointments.length === 0 ? (
                     <p className="text-gray-500 text-center py-10 italic">No appointments scheduled.</p>
                 ) : (
-                    appointments.filter(appt => appt.status !== 'cancelled').map(appt => (
-                        <div key={appt._id} className="p-6 border rounded-xl bg-white/50 flex flex-col md:flex-row justify-between items-start md:items-center">
+                    activeAppointments.map(appt => (
+                        <div key={appt._id} className="border rounded-xl bg-white/50 overflow-hidden">
+                            <div className="p-6 flex flex-col md:flex-row justify-between items-start md:items-center">
                             <div className="mb-4 md:mb-0">
                                 <h3 className="font-bold text-lg text-slate-800">{doctorMap?.[appt.doctorId] || 'Medical Specialist'}</h3>
                                 <p className="text-gray-500 font-medium">{appt.date} • {appt.time} • Doctor Acceptance Status: <span className={`font-black uppercase tracking-widest text-[10px] px-2 py-1 rounded-lg ${
@@ -305,6 +385,32 @@ export default function MyAppointments({ setActiveCall }) {
                                     </>
                                 )}
                             </div>
+                            </div>
+                            {/* Chat history panel */}
+                            {expandedChat === appt._id && (
+                                <div className="border-t bg-slate-50 px-6 py-4">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                        <MessageSquare className="w-3.5 h-3.5" /> Session Chat History
+                                    </p>
+                                    {!chatHistories[appt._id] || chatHistories[appt._id].length === 0 ? (
+                                        <p className="text-sm text-slate-400 italic">No chat messages for this session yet.</p>
+                                    ) : (
+                                        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                                            {chatHistories[appt._id].map((msg, i) => {
+                                                const isMe = msg.senderRole === 'patient';
+                                                return (
+                                                    <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                                        <span className="text-[10px] text-slate-400 mb-0.5">{msg.senderName} · {msg.time}</span>
+                                                        <div className={`px-3 py-2 rounded-xl text-sm max-w-[70%] break-words ${
+                                                            isMe ? 'bg-indigo-100 text-indigo-900' : 'bg-white border border-slate-200 text-slate-700'
+                                                        }`}>{msg.text}</div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     ))
                 )}

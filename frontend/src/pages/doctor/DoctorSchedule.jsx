@@ -68,7 +68,7 @@ export default function DoctorSchedule() {
         const fetchProfile = async () => {
             if (!user?.id) return;
             try {
-                const profRes = await axios.get(`http://localhost:3000/api/doctors/profile/${user.id}`, { 
+                const profRes = await axios.get(getDoctorServiceUrl(`/profile/${user.id}`), {
                     headers: { Authorization: `Bearer ${token}` } 
                 });
                 setProfileData({
@@ -91,7 +91,7 @@ export default function DoctorSchedule() {
         e.preventDefault();
         try {
             const payload = { ...profileData, availability: weeklyAvailability };
-            await axios.put(`http://localhost:3000/api/doctors/profile/${user.id}`, payload, {
+            await axios.put(getDoctorServiceUrl(`/profile/${user.id}`), payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             alert("Profile & Availability updated successfully!");

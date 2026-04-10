@@ -1,8 +1,69 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { getPatientServiceUrl } from '../../config/api';
+import { getAppointmentServiceUrl } from '../../config/api';
 import { useNavigate } from 'react-router-dom';
 import { Activity, ShieldAlert, FileText, MessageSquareWarning } from 'lucide-react';
+
+/**
+ * Returns join button state based on appointment date/time.
+ * - Enabled only within [slotStart - 5min, slotStart + 30min]
+ */
+function getJoinState(date, time) {
+    if (!date || !time) return { canJoin: true, label: 'Start Consultation' };
+
+    // Parse "HH:MM" or "H:MM AM/PM"
+    const parseTime = (t) => {
+        const twelve = t.match(/^(\d{1,2}):(\d{2})\s*([aApP][mM])$/);
+        if (twelve) {
+            let h = Number(twelve[1]) % 12;
+            if (twelve[3].toUpperCase() === 'PM') h += 12;
+            return h * 60 + Number(twelve[2]);
+        }
+        const twenty = t.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+        if (twenty) return Number(twenty[1]) * 60 + Number(twenty[2]);
+        return null;
+    };
+
+    const slotMinutes = parseTime(time.split('-')[0].trim());
+    if (slotMinutes === null) return { canJoin: true, label: 'Start Consultation' };
+
+    const now = new Date();
+    const slotDate = new Date(`${date}T00:00:00`);
+    slotDate.setMinutes(slotDate.getMinutes() + slotMinutes);
+
+    const diffMs = now - slotDate; // positive = past slot start
+    const EARLY_MS = 5 * 60 * 1000;
+    const WINDOW_MS = 30 * 60 * 1000;
+
+    if (diffMs < -EARLY_MS) {
+        // Too early
+        const startTime = slotDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return { canJoin: false, label: `Starts at ${startTime}` };
+    }
+    if (diffMs > WINDOW_MS) {
+        return { canJoin: false, label: 'Slot Ended' };
+    }
+    return { canJoin: true, label: 'Start Consultation' };
+}
+
+const parseObjectIdTimestamp = (id) => {
+    if (!id || typeof id !== 'string' || id.length < 8) return 0;
+    const seconds = Number.parseInt(id.slice(0, 8), 16);
+    if (Number.isNaN(seconds)) return 0;
+    return seconds * 1000;
+};
+
+const getAppointmentTimestamp = (appointment) => {
+    const createdAtMs = Date.parse(appointment?.createdAt || '');
+    if (Number.isFinite(createdAtMs) && createdAtMs > 0) return createdAtMs;
+    return parseObjectIdTimestamp(appointment?._id);
+};
+
+const sortAppointmentsNewestFirst = (items = []) => {
+    return [...items].sort((a, b) => getAppointmentTimestamp(b) - getAppointmentTimestamp(a));
+};
 
 export default function DoctorAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
@@ -11,6 +72,13 @@ export default function DoctorAppointments({ setActiveCall }) {
     const [expandedPatient, setExpandedPatient] = useState({}); // { appointmentId: patientData }
     const [loadingPatient, setLoadingPatient] = useState(null); // appointment id being loaded
     const [loading, setLoading] = useState(true);
+    const [, setTick] = useState(0);
+
+    // Re-render every 30s so join state stays current
+    useEffect(() => {
+        const id = setInterval(() => setTick(t => t + 1), 30000);
+        return () => clearInterval(id);
+    }, []);
 
     // Rejection modal state
     const [rejectModal, setRejectModal] = useState(null); // appointment id
@@ -20,10 +88,36 @@ export default function DoctorAppointments({ setActiveCall }) {
         const fetchAppointments = async () => {
             if (!user?.id) return;
             try {
-                const res = await axios.get(`http://localhost:3000/api/appointments/doctor/${user.id}`, { 
+                const res = await axios.get(getAppointmentServiceUrl(`/doctor/${user.id}`), {
                     headers: { Authorization: `Bearer ${token}` } 
                 });
-                setAppointments(res.data);
+
+                const incomingAppointments = Array.isArray(res.data) ? res.data : [];
+                const sortedAppointments = sortAppointmentsNewestFirst(incomingAppointments);
+                setAppointments(sortedAppointments);
+
+                const uniquePatientIds = Array.from(
+                    new Set(sortedAppointments.map((appt) => appt.patientId).filter(Boolean))
+                );
+
+                if (uniquePatientIds.length > 0) {
+                    const patientNameEntries = await Promise.all(
+                        uniquePatientIds.map(async (patientId) => {
+                            try {
+                                const pRes = await axios.get(getPatientServiceUrl(`/profile/${patientId}`), {
+                                    headers: { Authorization: `Bearer ${token}` }
+                                });
+                                return [patientId, pRes.data?.name || 'Unknown Patient'];
+                            } catch (err) {
+                                return [patientId, 'Unknown Patient'];
+                            }
+                        })
+                    );
+
+                    setPatientNames(Object.fromEntries(patientNameEntries));
+                } else {
+                    setPatientNames({});
+                }
             } catch (err) {
                 console.error("Error fetching appointments", err);
             } finally {
@@ -45,7 +139,7 @@ export default function DoctorAppointments({ setActiveCall }) {
         }
         setLoadingPatient(appointmentId);
         try {
-            const pRes = await axios.get(`http://localhost:3000/api/patients/profile/${patientId}`, { 
+            const pRes = await axios.get(getPatientServiceUrl(`/profile/${patientId}`), { 
                 headers: { Authorization: `Bearer ${token}` }
             });
             setExpandedPatient(prev => ({ ...prev, [appointmentId]: pRes.data }));
@@ -59,10 +153,10 @@ export default function DoctorAppointments({ setActiveCall }) {
 
     const handleAccept = async (id) => {
         try {
-            await axios.put(`http://localhost:3000/api/appointments/accept/${id}`, {}, {
+            await axios.put(getAppointmentServiceUrl(`/accept/${id}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAppointments(appointments.map(a => a._id === id ? { ...a, status: 'accepted' } : a));
+            setAppointments((prev) => prev.map((a) => a._id === id ? { ...a, status: 'accepted' } : a));
         } catch (err) {
             console.error(err);
             alert("Failed to accept");
@@ -91,8 +185,8 @@ export default function DoctorAppointments({ setActiveCall }) {
         }
     };
 
-    const startTelemedicine = (apptId) => {
-        setActiveCall(`channel-${apptId}`);
+    const startTelemedicine = (appt) => {
+        setActiveCall({ id: appt._id, date: appt.date, time: appt.time });
         navigate('/doctor/telemedicine');
     };
 
