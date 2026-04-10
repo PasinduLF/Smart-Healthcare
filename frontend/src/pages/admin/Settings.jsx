@@ -12,8 +12,8 @@ export default function AdminSettings() {
             <div className="grid lg:grid-cols-2 gap-8">
                 <div className="glass-premium p-8 border-slate-50">
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-3 bg-red-50 rounded-2xl">
-                            <Shield className="w-6 h-6 text-red-500" />
+                        <div className="p-3 bg-coral-50 rounded-2xl">
+                            <Shield className="w-6 h-6 text-coral-500" />
                         </div>
                         <div>
                             <h3 className="text-lg font-black text-slate-800 tracking-tight leading-none">Maintenance Protocol</h3>
@@ -26,10 +26,10 @@ export default function AdminSettings() {
                             <p className="font-bold text-slate-800 text-sm">Lock Booking Service</p>
                             <p className="text-xs text-slate-500 font-medium">Temporarily disable patient appointments for all specialists.</p>
                         </div>
-                        <input type="checkbox" className="w-10 h-6 appearance-none bg-slate-200 checked:bg-indigo-600 rounded-full cursor-pointer relative after:content-[''] after:absolute after:top-1 after:left-1 after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all checked:after:left-5 transition-all" />
+                        <input type="checkbox" className="w-10 h-6 appearance-none bg-slate-200 checked:bg-navy-600 rounded-full cursor-pointer relative after:content-[''] after:absolute after:top-1 after:left-1 after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all checked:after:left-5 transition-all" />
                     </div>
 
-                    <button className="w-full py-4 bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-200">
+                    <button className="w-full py-4 bg-navy-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-navy-700 transition-all shadow-xl shadow-navy-200">
                         Update Protocol Status
                     </button>
                 </div>
@@ -48,12 +48,12 @@ export default function AdminSettings() {
                     <div className="space-y-4 mb-6">
                         <div className="space-y-2">
                             <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Commission Percentage (%)</label>
-                            <input type="number" defaultValue="5" className="w-full px-5 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl font-black text-slate-900 outline-none focus:bg-white focus:border-indigo-100 transition-all" />
+                            <input type="number" defaultValue="5" className="w-full px-5 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl font-black text-slate-900 outline-none focus:bg-white focus:border-brand-100 transition-all" />
                         </div>
                         <p className="text-[10px] text-slate-400 font-bold leading-relaxed px-1">This fee is automatically deducted from every doctor's consultation payout.</p>
                     </div>
 
-                    <button className="w-full py-4 bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-2">
+                    <button className="w-full py-4 bg-navy-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-navy-700 transition-all shadow-xl shadow-navy-200 flex items-center justify-center gap-2">
                         <Save className="w-4 h-4" /> Save Fee Configuration
                     </button>
                 </div>

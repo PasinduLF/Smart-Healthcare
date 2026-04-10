@@ -6,11 +6,11 @@ export default function DoctorTelemedicine({ activeCall, setActiveCall }) {
     return (
         <div>
             <h2 className="text-xl font-black text-slate-800 tracking-tight mb-6 flex items-center gap-2">
-                <Video className="w-5 h-5 text-indigo-600" />
+                <Video className="w-5 h-5 text-navy-600" />
                 Live Consultation Session
             </h2>
             {activeCall ? (
-                <div className="glass-premium p-1 overflow-hidden rounded-[32px] shadow-2xl shadow-indigo-100">
+                <div className="glass-premium p-1 overflow-hidden rounded-[32px] shadow-2xl shadow-navy-100">
                     <VideoCall channelName={activeCall} onEndCall={() => setActiveCall(null)} />
                 </div>
             ) : (

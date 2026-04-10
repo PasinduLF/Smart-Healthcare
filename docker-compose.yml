@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   gateway:
     build: ./gateway
@@ -44,6 +42,9 @@ services:
     environment:
       - PORT=3003
       - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3006
+      - PATIENT_SERVICE_URL=http://patient-service:3001
+      - DOCTOR_SERVICE_URL=http://doctor-service:3002
 
   telemedicine-service:
     build: ./telemedicine-service
@@ -69,6 +70,14 @@ services:
       - "3006:3006"
     environment:
       - PORT=3006
+      - MONGO_URI=mongodb+srv://lpasindu30_db_user:SdSjcC0yYyX1JIwj@cluster0.gvxgnvm.mongodb.net/?appName=Cluster0
+      # Gmail SMTP — use a Gmail App Password (https://myaccount.google.com/apppasswords)
+      - SMTP_USER=dissanayakerivinma@gmail.com
+      - SMTP_PASS=xacxilgdazgmzhtb
+      # Twilio SMS — get from https://console.twilio.com
+      - TWILIO_ACCOUNT_SID=ACe31efa7b3833123e511b78b89037d138
+      - TWILIO_AUTH_TOKEN=70f3fe527f9fe4b9cfc0801e8602ef5e
+      - TWILIO_PHONE_NUMBER=+12603083680
 
   ai-service:
     build: ./ai-service

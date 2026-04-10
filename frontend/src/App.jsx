@@ -32,11 +32,14 @@ import DoctorSchedule from './pages/doctor/DoctorSchedule';
 import DoctorAppointments from './pages/doctor/Appointments';
 import DoctorPrescriptions from './pages/doctor/Prescriptions';
 import DoctorTelemedicine from './pages/doctor/Telemedicine';
+import DoctorPatientReports from './pages/doctor/PatientReports';
+import DoctorDashboard from './pages/doctor/Dashboard';
 
 // Admin Pages
 import UsersOverview from './pages/admin/UsersOverview';
 import AdminPayments from './pages/admin/Payments';
 import AdminSettings from './pages/admin/Settings';
+import EmailLogs from './pages/admin/EmailLogs';
 
 import { Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
@@ -82,6 +85,8 @@ function AppContent() {
                         <Route path="appointments" element={<DoctorAppointments setActiveCall={setActiveCall} />} />
                         <Route path="telemedicine" element={<DoctorTelemedicine activeCall={activeCall} setActiveCall={setActiveCall} />} />
                         <Route path="prescriptions" element={<DoctorPrescriptions />} />
+                        <Route path="reports" element={<DoctorPatientReports />} />
+                        <Route path="dashboard" element={<DoctorDashboard />} />
                     </Route>
 
                     {/* Admin Routes */}
@@ -89,6 +94,7 @@ function AppContent() {
                         <Route index element={<Navigate to="users" replace />} />
                         <Route path="users" element={<UsersOverview />} />
                         <Route path="payments" element={<AdminPayments />} />
+                        <Route path="emails" element={<EmailLogs />} />
                         <Route path="settings" element={<AdminSettings />} />
                     </Route>
 

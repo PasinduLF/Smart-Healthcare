@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }) => {
             setToken(newToken);
             setUser(userData);
             
-            return { success: true, role };
+            return { success: true, role, verified: loggedInUser.verified };
         } catch (error) {
             console.error('Login error:', error.response?.data?.error || error.message);
             return { success: false, error: error.response?.data?.error || 'Login failed' };
@@ -50,7 +50,9 @@ export const AuthProvider = ({ children }) => {
     const register = async (userData, role) => {
         try {
             const endpoint = role === 'doctor' ? '/api/doctors/register' : '/api/patients/register';
-            const response = await axios.post(`http://localhost:3000${endpoint}`, userData);
+            const isFormData = userData instanceof FormData;
+            const config = isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
+            const response = await axios.post(`http://localhost:3000${endpoint}`, userData, config);
             return { success: true };
         } catch (error) {
             return { success: false, error: error.response?.data?.error || 'Registration failed' };

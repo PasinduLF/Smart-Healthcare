@@ -55,7 +55,7 @@ export default function Services() {
         <div className="pt-20 pb-20">
             {/* Header */}
             <section className="container mx-auto px-6 text-center max-w-4xl mb-24">
-                <h1 className="text-5xl font-black text-slate-900 mb-6 underline decoration-indigo-200 underline-offset-8">Our Medical Ecosystem.</h1>
+                <h1 className="text-5xl font-black text-navy-600 mb-6 underline decoration-brand-200 underline-offset-8">Our Medical Ecosystem.</h1>
                 <p className="text-xl text-slate-600 leading-relaxed">
                     SmartHealth provides a comprehensive suite of digital healthcare tools designed for the modern patient and doctor.
                 </p>
@@ -65,21 +65,21 @@ export default function Services() {
             <section className="container mx-auto px-6 mb-32">
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {serviceList.map((s, i) => (
-                        <div key={i} className="p-10 bg-white border border-slate-100 rounded-[3rem] shadow-sm hover:shadow-2xl hover:border-indigo-100 transition-all duration-500 group flex flex-col">
-                            <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
-                                <s.icon className="w-8 h-8 text-indigo-600" />
+                        <div key={i} className="p-10 bg-white border border-slate-100 rounded-[3rem] shadow-sm hover:shadow-2xl hover:border-brand-100 transition-all duration-500 group flex flex-col">
+                            <div className="w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
+                                <s.icon className="w-8 h-8 text-brand-600" />
                             </div>
-                            <h3 className="text-2xl font-bold text-slate-900 mb-4">{s.title}</h3>
+                            <h3 className="text-2xl font-bold text-navy-600 mb-4">{s.title}</h3>
                             <p className="text-slate-500 text-sm leading-relaxed mb-8 flex-1">{s.desc}</p>
                             <ul className="space-y-3 mb-10">
                                 {s.features.map((f, index) => (
                                     <li key={index} className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wide">
-                                        <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
+                                        <div className="w-1.5 h-1.5 bg-brand-500 rounded-full"></div>
                                         {f}
                                     </li>
                                 ))}
                             </ul>
-                            <Link to={user ? s.link : '/register'} className="w-full py-4 text-center font-bold text-indigo-600 border border-indigo-100 rounded-2xl bg-indigo-50/50 hover:bg-indigo-600 hover:text-white transition-all">
+                            <Link to={user ? s.link : '/register'} className="w-full py-4 text-center font-bold text-navy-600 border border-navy-100 rounded-2xl bg-brand-50/50 hover:bg-navy-600 hover:text-white transition-all">
                                 {user ? 'Access Now' : 'Join to Explore'}
                             </Link>
                         </div>
@@ -89,13 +89,13 @@ export default function Services() {
 
             {/* Trust Banner */}
             <section className="container mx-auto px-6">
-                <div className="p-12 md:p-20 bg-slate-900 rounded-[4rem] text-center text-white relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(79,70,229,0.3),transparent)]"></div>
+                <div className="p-12 md:p-20 bg-navy-600 rounded-[4rem] text-center text-white relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(0,210,211,0.3),transparent)]"></div>
                     <div className="relative z-10 max-w-2xl mx-auto">
-                        <Shield className="w-16 h-16 text-indigo-400 mx-auto mb-8 animate-float" />
-                        <h2 className="text-4xl md:text-5xl font-black mb-6 leading-tight">Your Data and Health, <span className="text-indigo-400">Secured.</span></h2>
-                        <p className="text-slate-400 mb-10 italic">"Security is at the heart of everything we do. From encrypted consultations to verified credentials—your privacy is our priority."</p>
-                        <hr className="border-slate-800 mb-10 w-24 mx-auto" />
+                        <Shield className="w-16 h-16 text-brand-400 mx-auto mb-8 animate-float" />
+                        <h2 className="text-4xl md:text-5xl font-black mb-6 leading-tight">Your Data and Health, <span className="text-brand-400">Secured.</span></h2>
+                        <p className="text-slate-300 mb-10 italic">"Security is at the heart of everything we do. From encrypted consultations to verified credentials—your privacy is our priority."</p>
+                        <hr className="border-navy-500 mb-10 w-24 mx-auto" />
                         <div className="grid grid-cols-3 gap-4">
                             <div>
                                 <h4 className="font-bold text-xl mb-1">256-bit</h4>

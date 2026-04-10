@@ -4,7 +4,15 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900;
+    @apply font-sans;
+    background-color: #F8FAFC;
+    color: #1A2B4C;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background-color: #B3F0F0;
+    color: #1A2B4C;
   }
 }
 
@@ -18,11 +26,14 @@
   }
 
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-blue-600 to-teal-500;
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(to right, #1A2B4C, #2D4F73, #00D2D3);
   }
 
   .btn-gradient {
-    @apply bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300;
+    @apply text-white shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-300;
+    background-image: linear-gradient(to right, #1A2B4C, #2D4F73);
+    box-shadow: 0 4px 14px 0 rgba(42, 77, 115, 0.25);
   }
 }
 

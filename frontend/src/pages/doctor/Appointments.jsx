@@ -2,14 +2,19 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Activity, X } from 'lucide-react';
+import { Activity, ShieldAlert, FileText, MessageSquareWarning } from 'lucide-react';
 
 export default function DoctorAppointments({ setActiveCall }) {
     const { user, token } = useAuth();
     const navigate = useNavigate();
     const [appointments, setAppointments] = useState([]);
-    const [selectedPatient, setSelectedPatient] = useState(null);
+    const [expandedPatient, setExpandedPatient] = useState({}); // { appointmentId: patientData }
+    const [loadingPatient, setLoadingPatient] = useState(null); // appointment id being loaded
     const [loading, setLoading] = useState(true);
+
+    // Rejection modal state
+    const [rejectModal, setRejectModal] = useState(null); // appointment id
+    const [rejectReason, setRejectReason] = useState('');
 
     useEffect(() => {
         const fetchAppointments = async () => {
@@ -28,15 +33,27 @@ export default function DoctorAppointments({ setActiveCall }) {
         fetchAppointments();
     }, [user, token]);
 
-    const viewPatientProfile = async (patientId) => {
+    const viewPatientProfile = async (appointmentId, patientId) => {
+        // Toggle off if already expanded
+        if (expandedPatient[appointmentId]) {
+            setExpandedPatient(prev => {
+                const next = { ...prev };
+                delete next[appointmentId];
+                return next;
+            });
+            return;
+        }
+        setLoadingPatient(appointmentId);
         try {
             const pRes = await axios.get(`http://localhost:3000/api/patients/profile/${patientId}`, { 
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setSelectedPatient(pRes.data);
+            setExpandedPatient(prev => ({ ...prev, [appointmentId]: pRes.data }));
         } catch(err) { 
             console.error(err);
             alert("Failed to fetch patient data"); 
+        } finally {
+            setLoadingPatient(null);
         }
     };
 
@@ -52,12 +69,22 @@ export default function DoctorAppointments({ setActiveCall }) {
         }
     };
 
-    const handleReject = async (id) => {
+    const openRejectModal = (id) => {
+        setRejectModal(id);
+        setRejectReason('');
+    };
+
+    const handleRejectConfirm = async () => {
+        if (!rejectModal) return;
         try {
-            await axios.put(`http://localhost:3000/api/appointments/reject/${id}`, {}, {
+            await axios.put(`http://localhost:3000/api/appointments/reject/${rejectModal}`, {
+                reason: rejectReason
+            }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAppointments(appointments.map(a => a._id === id ? { ...a, status: 'rejected' } : a));
+            setAppointments(appointments.map(a => a._id === rejectModal ? { ...a, status: 'rejected', rejectionReason: rejectReason } : a));
+            setRejectModal(null);
+            setRejectReason('');
         } catch (err) {
             console.error(err);
             alert("Failed to reject");
@@ -73,55 +100,127 @@ export default function DoctorAppointments({ setActiveCall }) {
 
     return (
         <div className="relative">
-            <h2 className="text-xl font-semibold mb-6">Patient Appointments</h2>
-            
-            {selectedPatient && (
-                <div className="mb-8 p-6 border-2 border-teal-100 rounded-2xl bg-teal-50/50 relative shadow-xl shadow-teal-100/20 animate-in zoom-in-95 duration-200">
-                    <button onClick={() => setSelectedPatient(null)} className="absolute top-4 right-4 p-2 hover:bg-white rounded-full transition shadow-sm border border-transparent hover:border-teal-100">
-                        <X className="w-5 h-5 text-slate-400" />
-                    </button>
-                    <h3 className="text-lg font-bold text-teal-800 mb-4 flex items-center gap-2"><Activity className="w-5 h-5"/> Patient Overview</h3>
-                    <div className="grid md:grid-cols-2 gap-6 text-sm">
-                        <div className="space-y-1">
-                            <p><span className="text-slate-400 font-bold uppercase text-[10px]">Name</span><br/> <span className="font-bold text-slate-700">{selectedPatient.name}</span></p>
-                            <p className="pt-2"><span className="text-slate-400 font-bold uppercase text-[10px]">Age</span><br/> <span className="font-bold text-slate-700">{selectedPatient.age || 'N/A'}</span></p>
-                        </div>
-                        <div className="space-y-1">
-                            <p><span className="text-slate-400 font-bold uppercase text-[10px]">Vitals</span><br/> <span className="font-bold text-slate-700">BP: {selectedPatient.vitals?.bloodPressure || '-'} • HR: {selectedPatient.vitals?.heartRate || '-'} • Wt: {selectedPatient.vitals?.weight || '-'}</span></p>
-                            <p className="pt-2"><span className="text-slate-400 font-bold uppercase text-[10px]">Allergies</span><br/> <span className="font-bold text-red-600">{selectedPatient.allergies?.length > 0 ? selectedPatient.allergies.join(', ') : 'None Reported'}</span></p>
-                        </div>
+            {/* Doctor Verification Banner */}
+            {user?.verified === false && (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 animate-in fade-in duration-300">
+                    <ShieldAlert className="w-6 h-6 text-amber-500 flex-shrink-0" />
+                    <div>
+                        <p className="text-sm font-bold text-amber-800">Account Pending Verification</p>
+                        <p className="text-xs text-amber-600">Your account is awaiting admin verification. Some features may be limited until approved.</p>
                     </div>
                 </div>
             )}
+
+            <h2 className="text-xl font-semibold mb-6">Patient Appointments</h2>
 
             <div className="space-y-4">
                 {appointments.length === 0 ? (
                     <p className="text-gray-500">No appointments scheduled.</p>
                 ) : (
                     appointments.map(appt => (
-                        <div key={appt._id} className={`p-6 border rounded-2xl bg-white/50 flex flex-col md:flex-row justify-between md:items-center shadow-sm hover:shadow-md transition-all ${appt.status === 'cancelled' || appt.status === 'rejected' ? 'opacity-50' : ''}`}>
-                            <div className="mb-4 md:mb-0">
-                                <h3 className="font-bold text-slate-800 cursor-pointer hover:text-teal-600 flex items-center gap-2 group" onClick={() => viewPatientProfile(appt.patientId)}>
-                                    Patient: <span className="underline decoration-slate-200 group-hover:decoration-teal-200">{appt.patientId}</span>
-                                </h3>
-                                <p className="text-slate-400 text-xs font-bold mt-1 uppercase tracking-tight">{appt.date} • {appt.time} • Status: <span className={`font-black uppercase tracking-widest ${appt.status === 'accepted' ? 'text-teal-600' : 'text-orange-500'}`}>{appt.status}</span></p>
+                        <div key={appt._id} className={`border rounded-2xl bg-white/50 shadow-sm hover:shadow-md transition-all ${appt.status === 'cancelled' || appt.status === 'rejected' ? 'opacity-50' : ''}`}>
+                            <div className="p-6 flex flex-col md:flex-row justify-between md:items-center">
+                                <div className="mb-4 md:mb-0">
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                        Patient: <span className="text-brand-600">{appt.patientName || appt.patientId}</span>
+                                    </h3>
+                                    <p className="text-slate-400 text-xs font-bold mt-1 uppercase tracking-tight">{appt.date} • {appt.time} • Status: <span className={`font-black uppercase tracking-widest ${appt.status === 'accepted' ? 'text-brand-600' : appt.status === 'rejected' ? 'text-coral-500' : 'text-orange-500'}`}>{appt.status}</span></p>
+                                    {appt.status === 'rejected' && appt.rejectionReason && (
+                                        <p className="text-xs text-coral-500 mt-1 flex items-center gap-1">
+                                            <MessageSquareWarning className="w-3 h-3" />
+                                            Reason: {appt.rejectionReason}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="flex gap-2 flex-wrap">
+                                    {appt.status === 'pending' && (
+                                        <>
+                                            <button onClick={() => handleAccept(appt._id)} className="px-5 py-2.5 bg-brand-600 text-white text-xs font-bold rounded-xl hover:bg-brand-700 shadow-lg shadow-brand-100">Accept</button>
+                                            <button onClick={() => openRejectModal(appt._id)} className="px-5 py-2.5 bg-coral-50 text-coral-600 text-xs font-bold rounded-xl hover:bg-coral-100 border border-coral-100">Reject</button>
+                                        </>
+                                    )}
+                                    {appt.status === 'accepted' && (
+                                        <button onClick={() => startTelemedicine(appt._id)} className="px-6 py-2.5 bg-navy-600 text-white text-xs font-bold rounded-xl hover:bg-navy-700 shadow-lg shadow-navy-100">Start Consultation</button>
+                                    )}
+                                    <button 
+                                        onClick={() => viewPatientProfile(appt._id, appt.patientId)} 
+                                        className={`px-5 py-2.5 text-xs font-bold rounded-xl border shadow-sm transition ${expandedPatient[appt._id] ? 'bg-brand-50 text-brand-700 border-brand-200' : 'bg-slate-50 text-slate-600 hover:bg-white border-slate-100'}`}
+                                        disabled={loadingPatient === appt._id}
+                                    >
+                                        {loadingPatient === appt._id ? 'Loading...' : expandedPatient[appt._id] ? 'Hide Details' : 'Patient Details'}
+                                    </button>
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                {appt.status === 'pending' && (
-                                    <>
-                                        <button onClick={() => handleAccept(appt._id)} className="px-5 py-2.5 bg-teal-600 text-white text-xs font-bold rounded-xl hover:bg-teal-700 shadow-lg shadow-teal-100">Accept</button>
-                                        <button onClick={() => handleReject(appt._id)} className="px-5 py-2.5 bg-red-50 text-red-600 text-xs font-bold rounded-xl hover:bg-red-100 border border-red-100">Reject</button>
-                                    </>
-                                )}
-                                {appt.status === 'accepted' && (
-                                    <button onClick={() => startTelemedicine(appt._id)} className="px-6 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100">Start Consultation</button>
-                                )}
-                                <button onClick={() => viewPatientProfile(appt.patientId)} className="px-5 py-2.5 bg-slate-50 text-slate-600 text-xs font-bold rounded-xl hover:bg-white border border-slate-100 shadow-sm">Patient Details</button>
-                            </div>
+
+                            {/* Inline Patient Details */}
+                            {expandedPatient[appt._id] && (
+                                <div className="px-6 pb-6 pt-2 border-t border-brand-100 bg-brand-50/30 rounded-b-2xl animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <h4 className="text-sm font-bold text-brand-800 mb-3 flex items-center gap-2"><Activity className="w-4 h-4"/> Patient Overview</h4>
+                                    <div className="grid md:grid-cols-2 gap-4 text-sm">
+                                        <div className="space-y-1">
+                                            <p><span className="text-slate-400 font-bold uppercase text-[10px]">Name</span><br/> <span className="font-bold text-slate-700">{expandedPatient[appt._id].name}</span></p>
+                                            <p className="pt-2"><span className="text-slate-400 font-bold uppercase text-[10px]">Age</span><br/> <span className="font-bold text-slate-700">{expandedPatient[appt._id].age || 'N/A'}</span></p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p><span className="text-slate-400 font-bold uppercase text-[10px]">Vitals</span><br/> <span className="font-bold text-slate-700">BP: {expandedPatient[appt._id].vitals?.bloodPressure || '-'} • HR: {expandedPatient[appt._id].vitals?.heartRate || '-'} • Wt: {expandedPatient[appt._id].vitals?.weight || '-'}</span></p>
+                                            <p className="pt-2"><span className="text-slate-400 font-bold uppercase text-[10px]">Allergies</span><br/> <span className="font-bold text-coral-600">{expandedPatient[appt._id].allergies?.length > 0 ? expandedPatient[appt._id].allergies.join(', ') : 'None Reported'}</span></p>
+                                        </div>
+                                    </div>
+                                    {expandedPatient[appt._id].reports?.length > 0 && (
+                                        <div className="mt-3 pt-3 border-t border-brand-100">
+                                            <h5 className="text-[10px] font-black uppercase text-brand-600 tracking-widest mb-2 flex items-center gap-1"><FileText className="w-3 h-3" /> Medical Reports</h5>
+                                            <div className="flex flex-wrap gap-2">
+                                                {expandedPatient[appt._id].reports.map(report => (
+                                                    <a key={report._id} href={`http://localhost:3000${report.url}`} target="_blank" rel="noreferrer"
+                                                        className="px-3 py-1.5 bg-white border border-brand-100 rounded-lg text-xs font-medium text-brand-700 hover:bg-brand-50 transition">
+                                                        {report.category && <span className="text-[9px] text-brand-500 mr-1">[{report.category}]</span>}
+                                                        {report.originalName}
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     ))
                 )}
             </div>
+
+            {/* Rejection Reason Modal */}
+            {rejectModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setRejectModal(null)}>
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2.5 bg-coral-50 rounded-xl">
+                                <MessageSquareWarning className="w-5 h-5 text-coral-500" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-navy-800">Reject Appointment</h3>
+                                <p className="text-xs text-gray-500">Provide a reason for the patient</p>
+                            </div>
+                        </div>
+                        <textarea
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            placeholder="e.g. Schedule conflict, patient needs different specialist, time slot unavailable..."
+                            className="w-full px-4 py-3 border-2 border-gray-100 rounded-xl focus:border-coral-200 outline-none text-sm resize-none"
+                            rows="3"
+                            autoFocus
+                        />
+                        <div className="flex justify-end gap-3 mt-4">
+                            <button onClick={() => setRejectModal(null)}
+                                className="px-5 py-2.5 text-gray-600 hover:bg-gray-50 rounded-xl text-sm font-medium transition">
+                                Cancel
+                            </button>
+                            <button onClick={handleRejectConfirm}
+                                className="px-5 py-2.5 bg-coral-500 text-white rounded-xl hover:bg-coral-600 transition text-sm font-bold">
+                                Reject Appointment
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -65,21 +65,21 @@ export default function AIAnalyzer() {
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-3">
-                <Brain className="w-8 h-8 text-indigo-600" />
+                <Brain className="w-8 h-8 text-navy-600" />
                 <h2 className="text-2xl font-semibold">AI Symptom Checker</h2>
             </div>
             <p className="text-gray-600 italic">Describe your symptoms below. AI analyzes them with your profile for insights.</p>
 
             <form onSubmit={handleCheckSymptoms} className="space-y-4">
                 <textarea 
-                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none" 
+                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none resize-none" 
                     rows="4" 
                     placeholder="Describe your symptoms (e.g., severe headache behind right eye...)"
                     value={symptoms}
                     onChange={e => setSymptoms(e.target.value)}
                     required
                 ></textarea>
-                <button type="submit" disabled={aiLoading} className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+                <button type="submit" disabled={aiLoading} className="px-6 py-3 bg-navy-600 text-white font-medium rounded-lg hover:bg-navy-700 transition disabled:opacity-50">
                     {aiLoading ? 'Analyzing...' : 'Generate AI Diagnosis'}
                 </button>
             </form>
@@ -88,7 +88,7 @@ export default function AIAnalyzer() {
                 <div className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-4">
                     <div className="flex items-center gap-4">
                         <span className={`px-4 py-2 rounded-full text-sm font-bold uppercase ${
-                            aiResponse.severity === 'emergency' ? 'bg-red-100 text-red-700' :
+                            aiResponse.severity === 'emergency' ? 'bg-coral-100 text-coral-600' :
                             aiResponse.severity === 'high' ? 'bg-orange-100 text-orange-700' :
                             aiResponse.severity === 'moderate' ? 'bg-yellow-100 text-yellow-700' :
                             'bg-green-100 text-green-700'
@@ -98,7 +98,7 @@ export default function AIAnalyzer() {
                     </div>
 
                     <div className="p-5 bg-white border rounded-xl shadow-sm">
-                        <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Brain className="w-5 h-5 text-indigo-500" /> Analysis</h3>
+                        <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Brain className="w-5 h-5 text-brand-500" /> Analysis</h3>
                         <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">{aiResponse.analysis}</div>
                     </div>
                     {/* Simplified for brevity in layout, full modal below handles history */}
@@ -112,7 +112,7 @@ export default function AIAnalyzer() {
                         {symptomHistory.map(h => (
                             <div key={h._id} className="p-4 border rounded-xl bg-white/50 flex justify-between items-center">
                                 <p className="text-sm font-medium text-gray-800 truncate flex-1">{h.symptoms}</p>
-                                <button onClick={() => setViewModal(h)} className="ml-4 px-3 py-1 text-xs font-semibold text-indigo-600 bg-indigo-50 rounded-lg">View Details</button>
+                                <button onClick={() => setViewModal(h)} className="ml-4 px-3 py-1 text-xs font-semibold text-navy-600 bg-navy-50 rounded-lg">View Details</button>
                             </div>
                         ))}
                     </div>
@@ -123,7 +123,7 @@ export default function AIAnalyzer() {
             {viewModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setViewModal(null)}>
                     <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
-                        <div className="p-6 border-b flex justify-between items-center bg-indigo-50">
+                        <div className="p-6 border-b flex justify-between items-center bg-brand-50">
                             <div>
                                 <h3 className="text-xl font-bold">Historical AI Diagnosis</h3>
                                 <p className="text-xs text-gray-500">{new Date(viewModal.createdAt).toLocaleString()}</p>
@@ -131,15 +131,15 @@ export default function AIAnalyzer() {
                             <button onClick={() => setViewModal(null)} className="p-2 hover:bg-white rounded-full"><LogOut className="w-6 h-6 rotate-180" /></button>
                         </div>
                         <div className="p-6 overflow-y-auto space-y-6">
-                            <div className="p-4 bg-gray-50 rounded-xl border-l-4 border-indigo-500 font-medium italic">"{viewModal.symptoms}"</div>
+                            <div className="p-4 bg-gray-50 rounded-xl border-l-4 border-brand-500 font-medium italic">"{viewModal.symptoms}"</div>
                             <div className="p-5 bg-white border rounded-xl">
-                                <h4 className="font-bold mb-3 flex items-center gap-2 text-indigo-600"><Brain className="w-5 h-5" /> Analysis</h4>
+                                <h4 className="font-bold mb-3 flex items-center gap-2 text-navy-600"><Brain className="w-5 h-5" /> Analysis</h4>
                                 <div className="text-gray-700 text-sm whitespace-pre-wrap">{viewModal.fullAnalysis || viewModal.analysis}</div>
                             </div>
                             {/* ... more modal details as needed ... */}
                         </div>
                         <div className="p-6 border-t text-center">
-                            <button onClick={() => setViewModal(null)} className="px-8 py-3 bg-gray-900 text-white font-bold rounded-xl">Close</button>
+                            <button onClick={() => setViewModal(null)} className="px-8 py-3 bg-navy-600 text-white font-bold rounded-xl">Close</button>
                         </div>
                     </div>
                 </div>

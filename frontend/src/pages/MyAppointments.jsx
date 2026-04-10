@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config/api';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { MessageSquareWarning } from 'lucide-react';
 
 const dayKeyFromDate = (dateStr) => {
     if (!dateStr) return null;
@@ -228,17 +229,23 @@ export default function MyAppointments({ setActiveCall }) {
                                 <p className="text-gray-500 font-medium">{appt.date} • {appt.time} • Doctor Acceptance Status: <span className={`font-black uppercase tracking-widest text-[10px] px-2 py-1 rounded-lg ${
                                     appt.status === 'accepted' ? 'bg-emerald-50 text-emerald-600' :
                                     appt.status === 'pending' ? 'bg-orange-50 text-orange-600' :
-                                    'bg-red-50 text-red-600'
+                                    'bg-coral-50 text-coral-500'
                                 }`}>{appt.status}</span></p>
                                 <p className="text-xs uppercase tracking-widest font-bold text-slate-400 mt-1">
                                     Payment: <span className={
                                         appt.paymentStatus === 'unpaid'
-                                            ? 'text-red-500'
+                                            ? 'text-coral-500'
                                             : appt.paymentStatus === 'refunded'
                                                 ? 'text-amber-600'
                                                 : 'text-emerald-600'
                                     }>{appt.paymentStatus || 'unpaid'}</span>
                                 </p>
+                                {appt.status === 'rejected' && appt.rejectionReason && (
+                                    <p className="text-xs text-coral-500 mt-2 flex items-center gap-1.5 bg-coral-50 px-3 py-1.5 rounded-lg w-fit">
+                                        <MessageSquareWarning className="w-3.5 h-3.5 flex-shrink-0" />
+                                        <span>Rejection Reason: {appt.rejectionReason}</span>
+                                    </p>
+                                )}
 
                                 {rescheduleData.id === appt._id && (
                                     <div className="mt-4 p-4 bg-white rounded-xl border border-slate-100 shadow-sm space-y-3">
@@ -246,7 +253,7 @@ export default function MyAppointments({ setActiveCall }) {
                                         <div className="flex gap-2 items-center">
                                             <input
                                                 type="date"
-                                                className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                                                className="px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-500"
                                                 value={rescheduleData.date}
                                                 onChange={e => setRescheduleData({ ...rescheduleData, date: e.target.value, time: '' })}
                                             />
@@ -264,8 +271,8 @@ export default function MyAppointments({ setActiveCall }) {
                                                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${isBooked
                                                                 ? 'bg-slate-100 text-slate-300 border-slate-100 cursor-not-allowed line-through'
                                                                 : rescheduleData.time === slot
-                                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100'
-                                                                    : 'bg-white text-slate-600 border-slate-100 hover:border-indigo-200'}`}
+                                                                    ? 'bg-navy-600 text-white border-navy-600 shadow-lg shadow-navy-100'
+                                                                    : 'bg-white text-slate-600 border-slate-100 hover:border-brand-200'}`}
                                                         >
                                                             {slot}
                                                         </button>
@@ -274,7 +281,7 @@ export default function MyAppointments({ setActiveCall }) {
                                             </div>
                                         </div>
                                         <div className="flex gap-2">
-                                            <button onClick={() => handleReschedule(appt._id)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase transition hover:bg-indigo-700">Confirm Change</button>
+                                            <button onClick={() => handleReschedule(appt._id)} className="px-4 py-2 bg-navy-600 text-white rounded-lg text-xs font-bold uppercase transition hover:bg-navy-700">Confirm Change</button>
                                             <button onClick={() => setRescheduleData({ id: null, date: '', time: '' })} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold uppercase transition hover:bg-slate-200">Cancel</button>
                                         </div>
                                     </div>
@@ -284,14 +291,14 @@ export default function MyAppointments({ setActiveCall }) {
                                 {rescheduleData.id !== appt._id && (
                                     <>
                                         {appt.status === 'accepted' && (
-                                            <button onClick={() => startTelemedicine(appt._id)} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition text-sm font-bold border border-indigo-100">Join Call</button>
+                                            <button onClick={() => startTelemedicine(appt._id)} className="px-4 py-2 bg-brand-50 text-brand-600 rounded-lg hover:bg-brand-100 transition text-sm font-bold border border-brand-100">Join Call</button>
                                         )}
                                         {appt.status !== 'cancelled' && (
                                             <>
                                                 <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition text-sm font-bold border border-slate-100">Reschedule</button>
-                                                <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-bold border border-red-100">Cancel</button>
+                                                <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-coral-50 text-coral-600 rounded-lg hover:bg-coral-100 transition text-sm font-bold border border-coral-100">Cancel</button>
                                                    {appt.status === 'accepted' && appt.paymentStatus !== 'paid' && (
-                                                       <button onClick={() => handlePayNow(appt)} className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition text-sm font-bold shadow-lg shadow-slate-200">Pay Now</button>
+                                                       <button onClick={() => handlePayNow(appt)} className="px-4 py-2 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition text-sm font-bold shadow-lg shadow-navy-200">Pay Now</button>
                                                    )}
                                             </>
                                         )}

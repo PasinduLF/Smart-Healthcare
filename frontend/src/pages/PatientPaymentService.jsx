@@ -153,7 +153,7 @@ export default function PatientPaymentService() {
 					type="button"
 					onClick={handlePayment}
 					disabled={paying}
-					className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+					className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition disabled:opacity-50"
 				>
 					<CreditCard className="w-4 h-4" /> {paying ? 'Processing...' : 'Pay Now'}
 				</button>

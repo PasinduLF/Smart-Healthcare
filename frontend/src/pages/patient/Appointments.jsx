@@ -79,7 +79,7 @@ export default function PatientAppointments({ setActiveCall }) {
                                     <div className="mt-3 flex gap-2 items-center">
                                         <input type="date" className="px-2 py-1 border rounded text-sm" value={rescheduleData.date} onChange={e => setRescheduleData({...rescheduleData, date: e.target.value})} />
                                         <input type="time" className="px-2 py-1 border rounded text-sm" value={rescheduleData.time} onChange={e => setRescheduleData({...rescheduleData, time: e.target.value})} />
-                                        <button onClick={() => handleReschedule(appt._id)} className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">Save</button>
+                                        <button onClick={() => handleReschedule(appt._id)} className="px-3 py-1 bg-navy-600 text-white rounded text-sm hover:bg-navy-700">Save</button>
                                         <button onClick={() => setRescheduleData({ id: null, date: '', time: '' })} className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300">Cancel</button>
                                     </div>
                                 )}
@@ -91,8 +91,8 @@ export default function PatientAppointments({ setActiveCall }) {
                                             <button onClick={() => startTelemedicine(appt._id)} className="px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition text-sm font-medium">Join Call</button>
                                         )}
                                         <button onClick={() => setRescheduleData({ id: appt._id, date: appt.date, time: appt.time })} className="px-4 py-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition text-sm font-medium">Reschedule</button>
-                                        <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-medium">Cancel Appt</button>
-                                        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">Pay Now</button>
+                                        <button onClick={() => handleCancelAppointment(appt._id)} className="px-4 py-2 bg-coral-50 text-coral-600 rounded-lg hover:bg-coral-100 transition text-sm font-medium">Cancel Appt</button>
+                                        <button className="px-4 py-2 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition text-sm font-medium">Pay Now</button>
                                     </>
                                 )}
                             </div>

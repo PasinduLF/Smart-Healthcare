@@ -127,13 +127,13 @@ export default function VideoCall({ channelName, onEndCall }) {
 
                         {/* Controls */}
                         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4 bg-gray-900/80 backdrop-blur-md px-6 py-3 rounded-full border border-gray-700 z-10">
-                            <button onClick={toggleAudio} className={`p-4 rounded-full transition outline-none ${hasAudio ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white'}`}>
+                            <button onClick={toggleAudio} className={`p-4 rounded-full transition outline-none ${hasAudio ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-coral-400 hover:bg-coral-500 text-white'}`}>
                                 {hasAudio ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
                             </button>
-                            <button onClick={toggleVideo} className={`p-4 rounded-full transition outline-none ${hasVideo ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white'}`}>
+                            <button onClick={toggleVideo} className={`p-4 rounded-full transition outline-none ${hasVideo ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-coral-400 hover:bg-coral-500 text-white'}`}>
                                 {hasVideo ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
                             </button>
-                            <button onClick={handleEndCall} className="p-4 rounded-full bg-red-600 hover:bg-red-700 text-white transition outline-none">
+                            <button onClick={handleEndCall} className="p-4 rounded-full bg-coral-500 hover:bg-coral-600 text-white transition outline-none">
                                 <PhoneOff className="w-6 h-6" />
                             </button>
                         </div>
@@ -152,7 +152,7 @@ export default function VideoCall({ channelName, onEndCall }) {
                         return (
                             <div key={idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                                 <span className="text-[10px] text-gray-400 mb-1">{msg.time} {isMe ? '(You)' : ''}</span>
-                                <div className={`px-4 py-2 rounded-xl text-sm max-w-[90%] break-words ${isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-100 rounded-bl-none'}`}>
+                                <div className={`px-4 py-2 rounded-xl text-sm max-w-[90%] break-words ${isMe ? 'bg-brand-500 text-white rounded-br-none' : 'bg-gray-700 text-gray-100 rounded-bl-none'}`}>
                                     {msg.text}
                                 </div>
                             </div>
@@ -160,8 +160,8 @@ export default function VideoCall({ channelName, onEndCall }) {
                     })}
                 </div>
                 <form onSubmit={sendMessage} className="p-4 border-t border-gray-700 bg-gray-900 flex gap-2">
-                    <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type message..." className="flex-1 px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm placeholder-gray-500" />
-                    <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition outline-none">Send</button>
+                    <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type message..." className="flex-1 px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-brand-500 outline-none text-sm placeholder-gray-500" />
+                    <button type="submit" className="px-4 py-2 bg-brand-500 text-white rounded-lg text-sm font-medium hover:bg-brand-600 transition outline-none">Send</button>
                 </form>
             </div>
         </div>

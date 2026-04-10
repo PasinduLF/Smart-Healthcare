@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { ShieldAlert } from 'lucide-react';
 
 const dayOptions = [
     { key: 'Mon', label: 'Monday' },
@@ -131,23 +132,33 @@ export default function DoctorSchedule() {
 
     return (
         <div className="space-y-6">
+            {/* Doctor Verification Banner */}
+            {user?.verified === false && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
+                    <ShieldAlert className="w-6 h-6 text-amber-500 flex-shrink-0" />
+                    <div>
+                        <p className="text-sm font-bold text-amber-800">Account Pending Verification</p>
+                        <p className="text-xs text-amber-600">Your profile is visible to admin for review. You can still update your profile and set availability while waiting.</p>
+                    </div>
+                </div>
+            )}
             <h2 className="text-xl font-semibold">My Profile & Availability</h2>
             <form onSubmit={handleUpdateProfile} className="space-y-4 max-w-xl">
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Full Name</label>
-                    <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" value={profileData.name} onChange={e => setProfileData({...profileData, name: e.target.value})} required />
+                    <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" value={profileData.name} onChange={e => setProfileData({...profileData, name: e.target.value})} required />
                 </div>
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Specialization</label>
-                    <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" value={profileData.specialization} onChange={e => setProfileData({...profileData, specialization: e.target.value})} />
+                    <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" value={profileData.specialization} onChange={e => setProfileData({...profileData, specialization: e.target.value})} />
                 </div>
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Years of Experience</label>
-                    <input type="number" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" value={profileData.experience} onChange={e => setProfileData({...profileData, experience: parseInt(e.target.value) || 0})} />
+                    <input type="number" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" value={profileData.experience} onChange={e => setProfileData({...profileData, experience: parseInt(e.target.value) || 0})} />
                 </div>
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Appointment Price (LKR)</label>
-                    <input type="number" min="0" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" value={profileData.consultationFee} onChange={e => setProfileData({...profileData, consultationFee: Number(e.target.value) || 0})} />
+                    <input type="number" min="0" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" value={profileData.consultationFee} onChange={e => setProfileData({...profileData, consultationFee: Number(e.target.value) || 0})} />
                 </div>
                 
                 <div className="space-y-3 pt-4">
@@ -162,7 +173,7 @@ export default function DoctorSchedule() {
                                 <div key={day.key} className="p-4 border rounded-xl bg-slate-50/50">
                                     <div className="flex items-center justify-between mb-2">
                                         <p className="font-bold text-slate-700 text-sm">{day.label}</p>
-                                        <button type="button" onClick={() => addSlot(day.key)} className="text-[10px] px-3 py-1 rounded-full bg-teal-50 text-teal-600 font-bold border border-teal-100 hover:bg-teal-100 transition-colors">ADD SLOT</button>
+                                        <button type="button" onClick={() => addSlot(day.key)} className="text-[10px] px-3 py-1 rounded-full bg-brand-50 text-brand-600 font-bold border border-brand-100 hover:bg-brand-100 transition-colors">ADD SLOT</button>
                                     </div>
                                     {dayData.slots.length === 0 ? (
                                         <p className="text-[10px] text-slate-400 uppercase font-bold px-1">Off Duty</p>
@@ -179,7 +190,7 @@ export default function DoctorSchedule() {
                                                         <option value="">End</option>
                                                         {timeOptions.map(t => <option key={t} value={t}>{t}</option>)}
                                                     </select>
-                                                    <button type="button" onClick={() => removeSlot(day.key, index)} className="p-2 text-red-400 hover:text-red-600 bg-red-50 rounded-lg">×</button>
+                                                    <button type="button" onClick={() => removeSlot(day.key, index)} className="p-2 text-coral-400 hover:text-coral-600 bg-coral-50 rounded-lg">×</button>
                                                 </div>
                                             ))}
                                         </div>
@@ -189,7 +200,7 @@ export default function DoctorSchedule() {
                         })}
                     </div>
                 </div>
-                <button type="submit" className="w-full py-4 bg-teal-600 text-white rounded-xl shadow-lg shadow-teal-100 font-bold hover:bg-teal-700 transition-all">Save Profile & Schedule</button>
+                <button type="submit" className="w-full py-4 bg-brand-600 text-white rounded-xl shadow-lg shadow-brand-100 font-bold hover:bg-brand-700 transition-all">Save Profile & Schedule</button>
             </form>
         </div>
     );

@@ -51,6 +51,8 @@ const patientSchema = new mongoose.Schema({
         filename: String,
         originalName: String,
         url: String,
+        category: { type: String, default: 'Other' },
+        doctorId: { type: String, default: '' },
         uploadedAt: { type: Date, default: Date.now }
     }],
     createdAt: { type: Date, default: Date.now }
@@ -107,10 +109,12 @@ app.get('/profile/:id', async (req, res) => {
 // Update patient profile (basic details)
 app.put('/profile/:id', async (req, res) => {
     try {
-        const { name, age, contactNumber } = req.body;
+        const { name, age, contactNumber, allergies } = req.body;
+        const update = { name, age, contactNumber };
+        if (allergies !== undefined) update.allergies = allergies;
         const patient = await Patient.findByIdAndUpdate(
             req.params.id,
-            { name, age, contactNumber },
+            update,
             { new: true }
         ).select('-password');
         
@@ -149,13 +153,61 @@ app.post('/upload-report/:id', upload.single('report'), async (req, res) => {
         const newReport = {
             filename: req.file.filename,
             originalName: req.file.originalname,
-            url: `/api/patients/uploads/${req.file.filename}`
+            url: `/api/patients/uploads/${req.file.filename}`,
+            category: req.body.category || 'Other',
+            doctorId: req.body.doctorId || ''
         };
 
         patient.reports.push(newReport);
         await patient.save();
 
-        res.status(201).json({ message: 'Report uploaded successfully', report: newReport });
+        const savedReport = patient.reports[patient.reports.length - 1];
+        res.status(201).json({ message: 'Report uploaded successfully', report: savedReport });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete a medical report
+app.delete('/report/:patientId/:reportId', async (req, res) => {
+    try {
+        const patient = await Patient.findById(req.params.patientId);
+        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+
+        const reportIndex = patient.reports.findIndex(r => r._id.toString() === req.params.reportId);
+        if (reportIndex === -1) return res.status(404).json({ error: 'Report not found' });
+
+        // Remove file from disk
+        const reportFile = patient.reports[reportIndex];
+        const filePath = path.join(uploadDir, reportFile.filename);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+        patient.reports.splice(reportIndex, 1);
+        await patient.save();
+        res.json({ message: 'Report deleted' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get reports assigned to a specific doctor (across all patients)
+app.get('/reports/doctor/:doctorId', async (req, res) => {
+    try {
+        const patients = await Patient.find({ 'reports.doctorId': req.params.doctorId }).select('-password');
+        const results = [];
+        patients.forEach(patient => {
+            patient.reports
+                .filter(r => r.doctorId === req.params.doctorId)
+                .forEach(report => {
+                    results.push({
+                        ...report.toObject(),
+                        patientId: patient._id,
+                        patientName: patient.name
+                    });
+                });
+        });
+        results.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+        res.json(results);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
