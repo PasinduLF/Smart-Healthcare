@@ -74,12 +74,12 @@ export default function PaymentSuccess() {
             })}
 
             <div className="relative z-10">
-                <h2 className="text-2xl font-bold text-slate-900">Payment Successful</h2>
+                <h2 className="text-2xl font-bold text-navy-600">Payment Successful</h2>
                 <p className="mt-2 text-slate-500">Your appointment is confirmed. Thank you!</p>
                 <div className="mt-6">
                     <Link
                         to="/patient/appointments"
-                        className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-indigo-700"
+                        className="inline-flex items-center justify-center rounded-lg bg-navy-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-navy-700"
                     >
                         View My Appointments
                     </Link>

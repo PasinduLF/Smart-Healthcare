@@ -106,10 +106,11 @@ app.use('/api/payments', authenticateToken, createProxyMiddleware({
     changeOrigin: true,
 }));
 
-// Notification Service (Internal access or triggered by webhook)
+// Notification Service
 app.use('/api/notifications', createProxyMiddleware({
     target: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3006',
     changeOrigin: true,
+    pathRewrite: { '^/api/notifications': '' }
 }));
 
 // AI Support — direct handler (avoids HPM path-rewrite issues)
@@ -149,6 +150,7 @@ app.post('/api/ai/support', (req, res) => {
 app.use('/api/ai', authenticateToken, createProxyMiddleware({
     target: process.env.AI_SERVICE_URL || 'https://smart-healthcare-1-morq.onrender.com',
     changeOrigin: true,
+    pathRewrite: { '^/api/ai': '' }
 }));
 
 // Start Gateway

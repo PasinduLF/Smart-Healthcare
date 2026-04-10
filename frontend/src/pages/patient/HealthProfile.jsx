@@ -54,26 +54,26 @@ export default function HealthProfile() {
                 <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Blood Pressure (mmHg)</label>
-                        <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g., 120/80" value={healthProfile.vitals.bloodPressure} onChange={e => setHealthProfile({ ...healthProfile, vitals: { ...healthProfile.vitals, bloodPressure: e.target.value } })} />
+                        <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" placeholder="e.g., 120/80" value={healthProfile.vitals.bloodPressure} onChange={e => setHealthProfile({ ...healthProfile, vitals: { ...healthProfile.vitals, bloodPressure: e.target.value } })} />
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Heart Rate (bpm)</label>
-                        <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g., 72" value={healthProfile.vitals.heartRate} onChange={e => setHealthProfile({ ...healthProfile, vitals: { ...healthProfile.vitals, heartRate: e.target.value } })} />
+                        <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" placeholder="e.g., 72" value={healthProfile.vitals.heartRate} onChange={e => setHealthProfile({ ...healthProfile, vitals: { ...healthProfile.vitals, heartRate: e.target.value } })} />
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Weight (kg)</label>
-                        <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g., 70" value={healthProfile.vitals.weight} onChange={e => setHealthProfile({ ...healthProfile, vitals: { ...healthProfile.vitals, weight: e.target.value } })} />
+                        <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" placeholder="e.g., 70" value={healthProfile.vitals.weight} onChange={e => setHealthProfile({ ...healthProfile, vitals: { ...healthProfile.vitals, weight: e.target.value } })} />
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Height (cm)</label>
-                        <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g., 175" value={healthProfile.vitals.height} onChange={e => setHealthProfile({ ...healthProfile, vitals: { ...healthProfile.vitals, height: e.target.value } })} />
+                        <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" placeholder="e.g., 175" value={healthProfile.vitals.height} onChange={e => setHealthProfile({ ...healthProfile, vitals: { ...healthProfile.vitals, height: e.target.value } })} />
                     </div>
                 </div>
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Allergies (comma separated)</label>
-                    <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g., Peanuts, Penicillin" value={healthProfile.allergies.join(', ')} onChange={e => setHealthProfile({ ...healthProfile, allergies: e.target.value.split(',').map(a => a.trim()) })} />
+                    <input type="text" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" placeholder="e.g., Peanuts, Penicillin" value={healthProfile.allergies.join(', ')} onChange={e => setHealthProfile({ ...healthProfile, allergies: e.target.value.split(',').map(a => a.trim()) })} />
                 </div>
-                <button type="submit" className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition">Save Health Profile</button>
+                <button type="submit" className="px-6 py-3 bg-navy-600 text-white font-medium rounded-lg hover:bg-navy-700 transition">Save Health Profile</button>
             </form>
         </div>
     );

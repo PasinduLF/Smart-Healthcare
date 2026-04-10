@@ -228,6 +228,137 @@ Rules:
     res.json(fallbackResult);
 });
 
+// --- AI Prescription Suggestion Endpoint ---
+app.post('/suggest-prescription', async (req, res) => {
+    const { symptoms, allergies, pastPrescriptions } = req.body;
+    if (!symptoms) return res.status(400).json({ error: 'Symptoms are required' });
+
+    // Build allergy set for conflict detection
+    const allergySet = (allergies || []).map(a => a.toLowerCase());
+
+    // Common medication database for fallback
+    const medicationDB = {
+        'fever': [{ name: 'Paracetamol 500mg', dosage: 'Twice daily after meals', reason: 'Antipyretic for fever reduction' }, { name: 'Ibuprofen 200mg', dosage: 'As needed, max 3 times daily', reason: 'Anti-inflammatory and antipyretic' }],
+        'headache': [{ name: 'Paracetamol 500mg', dosage: 'Twice daily', reason: 'Pain relief' }, { name: 'Aspirin 325mg', dosage: 'Once daily', reason: 'Analgesic' }],
+        'cough': [{ name: 'Dextromethorphan 10mg/5ml', dosage: '10ml every 6 hours', reason: 'Cough suppressant' }, { name: 'Ambroxol 30mg', dosage: 'Twice daily', reason: 'Mucolytic agent' }],
+        'cold': [{ name: 'Cetirizine 10mg', dosage: 'Once daily', reason: 'Antihistamine for cold symptoms' }, { name: 'Pseudoephedrine 60mg', dosage: 'Twice daily', reason: 'Nasal decongestant' }],
+        'stomach': [{ name: 'Omeprazole 20mg', dosage: 'Once daily before breakfast', reason: 'Proton pump inhibitor' }, { name: 'Antacid Suspension', dosage: '10ml after meals', reason: 'Acid neutralizer' }],
+        'infection': [{ name: 'Amoxicillin 500mg', dosage: 'Three times daily for 7 days', reason: 'Broad-spectrum antibiotic' }, { name: 'Azithromycin 500mg', dosage: 'Once daily for 3 days', reason: 'Macrolide antibiotic' }],
+        'pain': [{ name: 'Ibuprofen 400mg', dosage: 'Twice daily after meals', reason: 'NSAID for pain relief' }, { name: 'Diclofenac 50mg', dosage: 'Twice daily', reason: 'Anti-inflammatory analgesic' }],
+        'allergy': [{ name: 'Cetirizine 10mg', dosage: 'Once daily at night', reason: 'Second-gen antihistamine' }, { name: 'Loratadine 10mg', dosage: 'Once daily', reason: 'Non-drowsy antihistamine' }],
+        'anxiety': [{ name: 'Alprazolam 0.25mg', dosage: 'As needed, max twice daily', reason: 'Anxiolytic' }],
+        'diabetes': [{ name: 'Metformin 500mg', dosage: 'Twice daily with meals', reason: 'Blood sugar regulation' }],
+        'hypertension': [{ name: 'Amlodipine 5mg', dosage: 'Once daily', reason: 'Calcium channel blocker' }, { name: 'Losartan 50mg', dosage: 'Once daily', reason: 'ARB for blood pressure' }],
+        'skin': [{ name: 'Hydrocortisone Cream 1%', dosage: 'Apply twice daily', reason: 'Topical anti-inflammatory' }, { name: 'Cetirizine 10mg', dosage: 'Once daily', reason: 'Antihistamine for itching' }],
+    };
+
+    // Known allergy-drug conflicts
+    const allergyConflicts = {
+        'penicillin': ['Amoxicillin', 'Ampicillin', 'Penicillin'],
+        'aspirin': ['Aspirin', 'Ibuprofen', 'Diclofenac', 'Naproxen'],
+        'nsaid': ['Ibuprofen', 'Diclofenac', 'Aspirin', 'Naproxen'],
+        'sulfa': ['Sulfamethoxazole', 'Sulfasalazine'],
+        'ibuprofen': ['Ibuprofen'],
+        'codeine': ['Codeine'],
+        'morphine': ['Morphine', 'Codeine'],
+        'latex': [],
+        'egg': [],
+        'peanut': [],
+    };
+
+    // Try Gemini AI first
+    if (process.env.GEMINI_API_KEY) {
+        try {
+            const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+            const prompt = `You are a clinical pharmacology AI assistant helping a doctor write a prescription.
+
+Patient symptoms: "${symptoms}"
+Patient allergies: ${allergies?.length ? allergies.join(', ') : 'None reported'}
+Past prescriptions: ${pastPrescriptions?.length ? pastPrescriptions.map(p => p.medication).join(', ') : 'None'}
+
+Respond ONLY with valid JSON (no markdown, no code fences):
+{
+  "suggestions": [
+    { "name": "Drug name with dosage", "dosage": "Frequency and duration", "reason": "Clinical reason" }
+  ],
+  "allergyWarnings": [
+    { "drug": "Drug name", "allergen": "Allergy that conflicts", "severity": "high|medium", "message": "Warning description" }
+  ],
+  "notes": "Brief clinical note about the prescription approach"
+}
+
+Rules:
+- Suggest 2-4 medications appropriate for the symptoms
+- CHECK every suggested drug against the patient's allergies — flag ANY conflicts
+- Consider past prescriptions to avoid duplicates and interactions
+- Include dosage instructions
+- This is a SUGGESTION only — the doctor makes the final decision`;
+
+            const result_ai = await model.generateContent(prompt);
+            const response_ai = await result_ai.response;
+            let rawText = response_ai.text().trim();
+            if (rawText.startsWith('```')) {
+                rawText = rawText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+            }
+            const parsed = JSON.parse(rawText);
+            return res.json({
+                suggestions: parsed.suggestions || [],
+                allergyWarnings: parsed.allergyWarnings || [],
+                notes: parsed.notes || '',
+                source: 'ai'
+            });
+        } catch (err) {
+            console.error('Gemini prescription suggestion error:', err.message);
+        }
+    }
+
+    // Fallback: dictionary-based suggestions
+    const lowerSymptoms = symptoms.toLowerCase();
+    const suggestions = [];
+    const allergyWarnings = [];
+
+    for (const [keyword, meds] of Object.entries(medicationDB)) {
+        if (lowerSymptoms.includes(keyword)) {
+            meds.forEach(med => {
+                // Check for allergy conflicts
+                let conflicted = false;
+                for (const allergy of allergySet) {
+                    const conflicts = allergyConflicts[allergy] || [];
+                    if (conflicts.some(c => med.name.toLowerCase().includes(c.toLowerCase()))) {
+                        allergyWarnings.push({
+                            drug: med.name,
+                            allergen: allergy,
+                            severity: 'high',
+                            message: `${med.name} may conflict with patient's ${allergy} allergy`
+                        });
+                        conflicted = true;
+                    }
+                }
+                // Check if already prescribed
+                const alreadyPrescribed = (pastPrescriptions || []).some(p =>
+                    p.medication && p.medication.toLowerCase().includes(med.name.split(' ')[0].toLowerCase())
+                );
+                if (!alreadyPrescribed) {
+                    suggestions.push({ ...med, conflicted });
+                }
+            });
+        }
+    }
+
+    if (suggestions.length === 0) {
+        suggestions.push({ name: 'General consultation recommended', dosage: 'N/A', reason: 'Symptoms require clinical evaluation before prescribing' });
+    }
+
+    res.json({
+        suggestions: suggestions.slice(0, 4),
+        allergyWarnings,
+        notes: 'Dictionary-based suggestion. For AI-powered suggestions, configure Gemini API key.',
+        source: 'dictionary'
+    });
+});
+
 // --- GET Symptom History for a Patient ---
 app.get('/history/:patientId', async (req, res) => {
     try {

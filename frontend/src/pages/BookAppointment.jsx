@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Calendar, Clock, ArrowLeft } from 'lucide-react';
+import { Calendar, Clock, ArrowLeft, Sun, Sunrise, Moon, CheckCircle2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -197,25 +197,16 @@ export default function BookAppointment() {
 		);
 	}, [appointments, selectedDate]);
 
-	const pastSlots = useMemo(() => {
-		if (!selectedDate) return new Set();
-		const now = new Date();
-		return new Set(
-			availableSlots.filter((slot) => !isFutureSlot(selectedDate, slot, now))
-		);
-	}, [availableSlots, selectedDate]);
-
-	const hasSelectableSlots = useMemo(
-		() => availableSlots.some((slot) => !bookedSlots.has(slot) && !pastSlots.has(slot)),
-		[availableSlots, bookedSlots, pastSlots]
-	);
-
-	useEffect(() => {
-		if (!selectedTime) return;
-		if (bookedSlots.has(selectedTime) || pastSlots.has(selectedTime)) {
-			setSelectedTime('');
-		}
-	}, [bookedSlots, pastSlots, selectedTime]);
+	const groupedSlots = useMemo(() => {
+		const groups = { morning: [], afternoon: [], evening: [] };
+		availableSlots.forEach((slot) => {
+			const mins = timeToMinutes(slot);
+			if (mins < 720) groups.morning.push(slot);
+			else if (mins < 1020) groups.afternoon.push(slot);
+			else groups.evening.push(slot);
+		});
+		return groups;
+	}, [availableSlots]);
 
 	const handleRequestAppointment = async () => {
 		if (!user || !token) return alert('Please login first');
@@ -243,141 +234,231 @@ export default function BookAppointment() {
 	};
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-6 max-w-3xl mx-auto">
 			<div className="flex items-center gap-3">
 				<button
 					type="button"
 					onClick={() => navigate('/patient/search')}
-					className="p-2 rounded-full bg-white border hover:bg-gray-50 transition"
+					className="p-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition shadow-sm"
 				>
-					<ArrowLeft className="w-4 h-4" />
+					<ArrowLeft className="w-4 h-4 text-slate-600" />
 				</button>
-				<h2 className="text-xl font-semibold">Book Appointment</h2>
+				<h2 className="text-2xl font-bold text-slate-800">Book Appointment</h2>
 			</div>
 
 			{loading ? (
-				<div className="p-6 bg-white rounded-xl border">
-					<p className="text-gray-500">Loading doctor details...</p>
+				<div className="p-8 bg-white rounded-2xl border border-slate-100 text-center">
+					<p className="text-gray-400 font-medium">Loading doctor details...</p>
 				</div>
 			) : doctor ? (
-				<div className="p-6 bg-white rounded-xl border space-y-4">
-					<div>
-						<h3 className="text-lg font-bold">Dr. {doctor.name}</h3>
-						<p className="text-sm text-gray-500">{doctor.specialty || doctor.specialization || 'Specialist'}</p>
-					</div>
-
-					<div className="grid md:grid-cols-2 gap-6">
-						<div className="space-y-2">
-							<label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-								<Calendar className="w-4 h-4" /> Select Date
-							</label>
-							<div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-cyan-50 p-4 shadow-sm space-y-3">
-								<p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-500">Pick from upcoming days</p>
-								<div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-2">
-									{quickDateOptions.map((option) => {
-										const isSelected = selectedDate === option.value;
-										return (
-											<button
-												key={option.value}
-												type="button"
-												onClick={() => {
-													setSelectedDate(option.value);
-													setSelectedTime('');
-												}}
-												className={`rounded-xl border px-3 py-2 text-left transition ${isSelected
-													? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-100 scale-[1.02]'
-													: 'bg-white/90 text-slate-700 border-blue-100 hover:border-blue-300 hover:bg-white'}`}
-											>
-												<p className={`text-[11px] font-semibold uppercase tracking-wide ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>{option.weekday}</p>
-												<p className="text-lg font-black leading-tight">{option.day}</p>
-												<p className={`text-[11px] font-semibold uppercase tracking-wide ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>{option.month}</p>
-												{option.isToday && <p className={`mt-1 text-[10px] font-bold uppercase tracking-wide ${isSelected ? 'text-blue-100' : 'text-blue-600'}`}>Today</p>}
-											</button>
-										);
-									})}
-								</div>
-
-								<div className="pt-2 border-t border-blue-100/80 space-y-1.5">
-									<label className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Or choose another date</label>
-									<input
-										type="date"
-										className="w-full px-4 py-3 border border-blue-100 rounded-xl bg-white text-slate-700 outline-none transition focus:ring-2 focus:ring-blue-500 focus:border-blue-400"
-										value={selectedDate}
-										min={minBookingDate}
-										onChange={(e) => {
-											setSelectedDate(e.target.value);
-											setSelectedTime('');
-										}}
-									/>
-								</div>
-
-								{selectedDate && (
-									<p className="text-xs text-blue-700 font-medium">
-										Selected: <span className="font-bold">{formatSelectedDateLabel(selectedDate)}</span>
-									</p>
+				<div className="space-y-5">
+					{/* Doctor Info Card */}
+					<div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+						<div className="flex items-center gap-4">
+							<div className="w-14 h-14 rounded-2xl bg-brand-50 flex items-center justify-center flex-shrink-0">
+								<span className="text-2xl font-black text-brand-600">{doctor.name?.charAt(0)}</span>
+							</div>
+							<div>
+								<h3 className="text-xl font-bold text-slate-800">Dr. {doctor.name}</h3>
+								<p className="text-brand-600 font-semibold text-sm">{doctor.specialty || doctor.specialization || 'Specialist'}</p>
+								{doctor.consultationFee > 0 && (
+									<p className="text-xs text-slate-400 font-medium mt-0.5">Consultation Fee: Rs. {doctor.consultationFee}</p>
 								)}
 							</div>
 						</div>
+					</div>
 
-						<div className="space-y-2">
-							<label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-								<Clock className="w-4 h-4" /> Select Time (30 min)
-							</label>
-							{selectedDate ? (
-								availableSlots.length > 0 ? (
-									<>
-										<div className="flex flex-wrap gap-2">
-											{availableSlots.map((slot) => {
+					{/* Date Selection */}
+					<div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-3">
+						<label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+							<Calendar className="w-4 h-4" /> Select Date
+						</label>
+						<input
+							type="date"
+							className="w-full px-4 py-3.5 bg-slate-50 border border-transparent focus:bg-white focus:border-brand-500 rounded-xl outline-none transition font-medium text-slate-700"
+							value={selectedDate}
+							min={new Date().toISOString().split('T')[0]}
+							onChange={(e) => {
+								setSelectedDate(e.target.value);
+								setSelectedTime('');
+							}}
+						/>
+					</div>
+
+					{/* Time Slot Selection */}
+					<div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-4">
+						<label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+							<Clock className="w-4 h-4" /> Select Time Slot
+						</label>
+
+						{!selectedDate ? (
+							<div className="py-8 text-center">
+								<Calendar className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+								<p className="text-sm text-slate-400 font-medium">Pick a date to see available time slots</p>
+							</div>
+						) : availableSlots.length === 0 ? (
+							<div className="py-8 text-center">
+								<Clock className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+								<p className="text-sm text-slate-400 font-medium">No available slots for this day</p>
+								<p className="text-xs text-slate-300 mt-1">Try selecting a different date</p>
+							</div>
+						) : (
+							<div className="space-y-5">
+								{/* Morning */}
+								{groupedSlots.morning.length > 0 && (
+									<div>
+										<div className="flex items-center gap-2 mb-3">
+											<Sunrise className="w-4 h-4 text-amber-500" />
+											<span className="text-sm font-bold text-slate-600">Morning</span>
+											<span className="text-xs text-slate-300 font-medium">Before 12:00 PM</span>
+										</div>
+										<div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+											{groupedSlots.morning.map((slot) => {
 												const isBooked = bookedSlots.has(slot);
-												const isPast = pastSlots.has(slot);
-												const isUnavailable = isBooked || isPast;
+												const isSelected = selectedTime === slot;
 												return (
-												<button
-													key={slot}
-													type="button"
-													onClick={() => setSelectedTime(slot)}
-													disabled={isUnavailable}
-													className={`px-3 py-2 rounded-lg text-sm border transition ${isUnavailable
-														? isPast
-															? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-															: 'bg-red-50 text-red-600 border-red-200 cursor-not-allowed'
-														: selectedTime === slot
-															? 'bg-green-600 text-white border-green-600'
-															: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200'}
-													`}
-												>
-													{slot} - {minutesToTime(timeToMinutes(slot) + 30)}{isPast ? ' - Passed' : isBooked ? ' - Booked' : ''}
-												</button>
+													<button
+														key={slot}
+														type="button"
+														onClick={() => setSelectedTime(slot)}
+														disabled={isBooked}
+														className={`relative px-3 py-3 rounded-xl text-sm font-bold transition-all border ${
+															isBooked
+																? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed line-through'
+																: isSelected
+																	? 'bg-brand-600 text-white border-brand-600 shadow-lg shadow-brand-100 scale-[1.02]'
+																	: 'bg-white text-slate-600 border-slate-200 hover:border-brand-400 hover:text-brand-600 hover:shadow-md'
+														}`}
+													>
+														{slot}
+														{isBooked && <span className="block text-[10px] font-medium text-coral-400 no-underline" style={{textDecoration:'none'}}>Booked</span>}
+														{isSelected && <CheckCircle2 className="absolute -top-1.5 -right-1.5 w-4 h-4 text-brand-600 bg-white rounded-full" />}
+													</button>
 												);
 											})}
 										</div>
-										{!hasSelectableSlots && (
-											<p className="text-xs text-amber-600">No future time slots are currently available for this date.</p>
-										)}
-									</>
-								) : (
-									<p className="text-sm text-gray-500">No available slots for this day.</p>
-								)
-							) : (
-								<p className="text-sm text-gray-500">Pick a date to see available slots.</p>
-							)}
-						</div>
+									</div>
+								)}
+
+								{/* Afternoon */}
+								{groupedSlots.afternoon.length > 0 && (
+									<div>
+										<div className="flex items-center gap-2 mb-3">
+											<Sun className="w-4 h-4 text-orange-500" />
+											<span className="text-sm font-bold text-slate-600">Afternoon</span>
+											<span className="text-xs text-slate-300 font-medium">12:00 PM - 5:00 PM</span>
+										</div>
+										<div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+											{groupedSlots.afternoon.map((slot) => {
+												const isBooked = bookedSlots.has(slot);
+												const isSelected = selectedTime === slot;
+												return (
+													<button
+														key={slot}
+														type="button"
+														onClick={() => setSelectedTime(slot)}
+														disabled={isBooked}
+														className={`relative px-3 py-3 rounded-xl text-sm font-bold transition-all border ${
+															isBooked
+																? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed line-through'
+																: isSelected
+																	? 'bg-brand-600 text-white border-brand-600 shadow-lg shadow-brand-100 scale-[1.02]'
+																	: 'bg-white text-slate-600 border-slate-200 hover:border-brand-400 hover:text-brand-600 hover:shadow-md'
+														}`}
+													>
+														{slot}
+														{isBooked && <span className="block text-[10px] font-medium text-coral-400 no-underline" style={{textDecoration:'none'}}>Booked</span>}
+														{isSelected && <CheckCircle2 className="absolute -top-1.5 -right-1.5 w-4 h-4 text-brand-600 bg-white rounded-full" />}
+													</button>
+												);
+											})}
+										</div>
+									</div>
+								)}
+
+								{/* Evening */}
+								{groupedSlots.evening.length > 0 && (
+									<div>
+										<div className="flex items-center gap-2 mb-3">
+											<Moon className="w-4 h-4 text-navy-500" />
+											<span className="text-sm font-bold text-slate-600">Evening</span>
+											<span className="text-xs text-slate-300 font-medium">After 5:00 PM</span>
+										</div>
+										<div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+											{groupedSlots.evening.map((slot) => {
+												const isBooked = bookedSlots.has(slot);
+												const isSelected = selectedTime === slot;
+												return (
+													<button
+														key={slot}
+														type="button"
+														onClick={() => setSelectedTime(slot)}
+														disabled={isBooked}
+														className={`relative px-3 py-3 rounded-xl text-sm font-bold transition-all border ${
+															isBooked
+																? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed line-through'
+																: isSelected
+																	? 'bg-brand-600 text-white border-brand-600 shadow-lg shadow-brand-100 scale-[1.02]'
+																	: 'bg-white text-slate-600 border-slate-200 hover:border-brand-400 hover:text-brand-600 hover:shadow-md'
+														}`}
+													>
+														{slot}
+														{isBooked && <span className="block text-[10px] font-medium text-coral-400 no-underline" style={{textDecoration:'none'}}>Booked</span>}
+														{isSelected && <CheckCircle2 className="absolute -top-1.5 -right-1.5 w-4 h-4 text-brand-600 bg-white rounded-full" />}
+													</button>
+												);
+											})}
+										</div>
+									</div>
+								)}
+
+								{/* Legend */}
+								<div className="flex items-center gap-5 pt-3 border-t border-slate-100">
+									<div className="flex items-center gap-1.5">
+										<div className="w-3 h-3 rounded bg-white border border-slate-200"></div>
+										<span className="text-xs text-slate-400">Available</span>
+									</div>
+									<div className="flex items-center gap-1.5">
+										<div className="w-3 h-3 rounded bg-brand-600"></div>
+										<span className="text-xs text-slate-400">Selected</span>
+									</div>
+									<div className="flex items-center gap-1.5">
+										<div className="w-3 h-3 rounded bg-slate-50 border border-slate-100"></div>
+										<span className="text-xs text-slate-400">Booked</span>
+									</div>
+								</div>
+							</div>
+						)}
 					</div>
 
+					{/* Selected Summary & Book Button */}
+					{selectedDate && selectedTime && (
+						<div className="p-5 bg-brand-50 rounded-2xl border border-brand-100 flex items-center justify-between">
+							<div>
+								<p className="text-xs font-black text-brand-600 uppercase tracking-widest mb-1">Your Selection</p>
+								<p className="text-sm font-bold text-slate-700">
+									{new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+									{' '}at <span className="text-brand-700">{selectedTime} - {minutesToTime(timeToMinutes(selectedTime) + 30)}</span>
+								</p>
+							</div>
+						</div>
+					)}
+
+					{/* Action Button */}
 					<div className="flex justify-end">
 						<button
 							type="button"
 							onClick={handleRequestAppointment}
 							disabled={saving || !selectedDate || !selectedTime}
-							className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+							className="px-8 py-4 bg-navy-600 text-white rounded-2xl hover:bg-navy-700 transition disabled:opacity-40 disabled:cursor-not-allowed font-bold text-sm shadow-xl shadow-navy-200"
 						>
-							Request Appointment
+							{saving ? 'Requesting...' : 'Request Appointment'}
 						</button>
 					</div>
 				</div>
 			) : (
-				<div className="p-6 bg-white rounded-xl border">
-					<p className="text-gray-500">Doctor not found.</p>
+				<div className="p-8 bg-white rounded-2xl border border-slate-100 text-center">
+					<p className="text-gray-400 font-medium">Doctor not found.</p>
 				</div>
 			)}
 		</div>

@@ -653,6 +653,17 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                 </div>
             </div>
 
+                        {/* Controls */}
+                        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4 bg-gray-900/80 backdrop-blur-md px-6 py-3 rounded-full border border-gray-700 z-10">
+                            <button onClick={toggleAudio} className={`p-4 rounded-full transition outline-none ${hasAudio ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-coral-400 hover:bg-coral-500 text-white'}`}>
+                                {hasAudio ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
+                            </button>
+                            <button onClick={toggleVideo} className={`p-4 rounded-full transition outline-none ${hasVideo ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-coral-400 hover:bg-coral-500 text-white'}`}>
+                                {hasVideo ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
+                            </button>
+                            <button onClick={handleEndCall} className="p-4 rounded-full bg-coral-500 hover:bg-coral-600 text-white transition outline-none">
+                                <PhoneOff className="w-6 h-6" />
+                            </button>
             <div className="flex flex-1 min-h-0" style={isFullscreen ? {} : { height: 460 }}>
                 {/* Video area */}
                 <div className="relative flex-1 flex items-center justify-center bg-gray-900">
@@ -667,6 +678,19 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                             <div ref={remoteVideoRef}
                                 className={`absolute inset-0 w-full h-full ${remoteStream ? '' : 'hidden'}`} />
 
+            {/* Right side: Chat Overlay */}
+            <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col">
+                <div className="p-4 border-b border-gray-700 bg-gray-900 font-medium text-white shadow z-10">
+                    Live Chat
+                </div>
+                <div className="flex-1 p-4 overflow-y-auto space-y-3 flex flex-col">
+                    {messages.map((msg, idx) => {
+                        const isMe = msg.socketId === socketRef.current?.id;
+                        return (
+                            <div key={idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                <span className="text-[10px] text-gray-400 mb-1">{msg.time} {isMe ? '(You)' : ''}</span>
+                                <div className={`px-4 py-2 rounded-xl text-sm max-w-[90%] break-words ${isMe ? 'bg-brand-500 text-white rounded-br-none' : 'bg-gray-700 text-gray-100 rounded-bl-none'}`}>
+                                    {msg.text}
                             {/* Remote placeholder */}
                             {!remoteStream && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
@@ -742,6 +766,10 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                         </>
                     )}
                 </div>
+                <form onSubmit={sendMessage} className="p-4 border-t border-gray-700 bg-gray-900 flex gap-2">
+                    <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type message..." className="flex-1 px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-brand-500 outline-none text-sm placeholder-gray-500" />
+                    <button type="submit" className="px-4 py-2 bg-brand-500 text-white rounded-lg text-sm font-medium hover:bg-brand-600 transition outline-none">Send</button>
+                </form>
 
                 {/* Chat panel */}
                 {showChat && (

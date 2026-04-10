@@ -40,7 +40,7 @@ export default function AdminPayments() {
                 </div>
                 <div className="flex gap-2">
                     <button className="p-3 bg-white border border-slate-100 rounded-xl hover:bg-slate-50"><Filter className="w-4 h-4 text-slate-400" /></button>
-                    <button className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white text-xs font-black uppercase rounded-xl hover:bg-slate-800 shadow-xl shadow-slate-200"><Download className="w-4 h-4" /> Export CSV</button>
+                    <button className="flex items-center gap-2 px-6 py-3 bg-navy-600 text-white text-xs font-black uppercase rounded-xl hover:bg-navy-700 shadow-xl shadow-navy-200"><Download className="w-4 h-4" /> Export CSV</button>
                 </div>
             </div>
 
@@ -78,7 +78,7 @@ export default function AdminPayments() {
                                     </td>
                                     <td className="px-8 py-6 text-right">
                                         <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                                            tx.status === 'succeeded' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'
+                                            tx.status === 'succeeded' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-coral-50 text-coral-600 border border-coral-100'
                                         }`}>
                                             {tx.status}
                                         </span>

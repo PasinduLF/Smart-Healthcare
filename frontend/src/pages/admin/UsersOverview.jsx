@@ -55,9 +55,9 @@ export default function UsersOverview() {
         <div className="space-y-10">
             <div className="grid md:grid-cols-3 gap-6">
                 {[
-                    { label: 'Total Patients', value: stats.patients, icon: Users, color: 'blue' },
-                    { label: 'Verified Doctors', value: stats.doctors, icon: ShieldCheck, color: 'teal' },
-                    { label: 'Live Appointments', value: stats.appointments, icon: Activity, color: 'indigo' }
+                    { label: 'Total Patients', value: stats.patients, icon: Users, color: 'brand' },
+                    { label: 'Verified Doctors', value: stats.doctors, icon: ShieldCheck, color: 'brand' },
+                    { label: 'Live Appointments', value: stats.appointments, icon: Activity, color: 'navy' }
                 ].map((stat, i) => (
                     <div key={i} className="glass-premium p-8 relative overflow-hidden group">
                         <stat.icon className={`absolute -right-4 -bottom-4 w-24 h-24 text-${stat.color}-500/5 group-hover:scale-110 transition-transform`} />
@@ -87,13 +87,13 @@ export default function UsersOverview() {
                                 <div className="mb-4 lg:mb-0">
                                     <h3 className="font-black text-slate-800 text-lg tracking-tight">Dr. {doctor.name}</h3>
                                     <p className="text-slate-400 font-bold text-xs uppercase tracking-tight mb-3">{doctor.specialty} • Established {new Date(doctor.createdAt).toLocaleDateString()}</p>
-                                    <button className="flex items-center gap-2 text-indigo-600 text-xs font-black uppercase tracking-widest hover:text-indigo-700">
+                                    <button className="flex items-center gap-2 text-navy-600 text-xs font-black uppercase tracking-widest hover:text-navy-700">
                                         <Search className="w-3 h-3" /> View Credentials
                                     </button>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button className="px-6 py-3 bg-red-50 text-red-600 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-red-100 transition-all border border-red-100">Decline</button>
-                                    <button onClick={() => handleVerify(doctor._id)} className="px-6 py-3 bg-slate-900 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200">Approve Specialist</button>
+                                    <button className="px-6 py-3 bg-coral-50 text-coral-600 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-coral-100 transition-all border border-coral-100">Decline</button>
+                                    <button onClick={() => handleVerify(doctor._id)} className="px-6 py-3 bg-navy-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-navy-700 transition-all shadow-lg shadow-navy-200">Approve Specialist</button>
                                 </div>
                             </div>
                         ))
