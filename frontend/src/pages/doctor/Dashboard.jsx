@@ -20,8 +20,8 @@ export default function DoctorDashboard() {
                     axios.get(`http://localhost:3000/api/appointments/doctor/${user.id}`, { headers: { Authorization: `Bearer ${token}` } }),
                     axios.get(`http://localhost:3000/api/doctors/prescriptions/doctor/${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
                 ]);
-                setAppointments(apptsRes.data || []);
-                setPrescriptions(scriptsRes.data || []);
+                setAppointments(Array.isArray(apptsRes.data) ? apptsRes.data : []);
+                setPrescriptions(Array.isArray(scriptsRes.data) ? scriptsRes.data : []);
             } catch (err) {
                 console.error('Dashboard fetch error', err);
             } finally {

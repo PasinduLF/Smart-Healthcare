@@ -70,28 +70,32 @@ app.put('/api/doctors/verify/:id', authenticateToken, requireRole(['admin']), cr
     pathRewrite: { '^/api/doctors': '' }
 }));
 
-// Patient Service (Public routes like login/register)
+// Patient Service (Public routes like login/register) — services listen on /profile, /login, etc., not /api/patients/*
 app.use('/api/patients', createProxyMiddleware({
     target: process.env.PATIENT_SERVICE_URL || 'https://smart-healthcare-lckn.onrender.com',
     changeOrigin: true,
+    pathRewrite: { '^/api/patients': '' }
 }));
 
 // Doctor Service (Public routes like list/login/register)
 app.use('/api/doctors', createProxyMiddleware({
     target: process.env.DOCTOR_SERVICE_URL || 'https://smart-healthcare-doctor-service.onrender.com',
     changeOrigin: true,
+    pathRewrite: { '^/api/doctors': '' }
 }));
 
 // Appointment Service
 app.use('/api/appointments', authenticateToken, createProxyMiddleware({
     target: process.env.APPOINTMENT_SERVICE_URL || 'http://localhost:3003',
     changeOrigin: true,
+    pathRewrite: { '^/api/appointments': '' }
 }));
 
 // Telemedicine Service
 app.use('/api/telemedicine', authenticateToken, createProxyMiddleware({
     target: process.env.TELEMEDICINE_SERVICE_URL || 'http://localhost:3004',
     changeOrigin: true,
+    pathRewrite: { '^/api/telemedicine': '' }
 }));
 
 // Payment Service
@@ -104,6 +108,7 @@ app.use('/api/payments/payhere/notify', createProxyMiddleware({
 app.use('/api/payments', authenticateToken, createProxyMiddleware({
     target: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3005',
     changeOrigin: true,
+    pathRewrite: { '^/api/payments': '' }
 }));
 
 // Notification Service

@@ -27,9 +27,11 @@ export default function DoctorPrescriptions() {
                     axios.get(`http://localhost:3000/api/doctors/prescriptions/doctor/${user.id}`, { headers: { Authorization: `Bearer ${token}` } }),
                     axios.get(`http://localhost:3000/api/appointments/doctor/${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
                 ]);
-                setPrescriptions(scriptsRes.data);
+                const scripts = Array.isArray(scriptsRes.data) ? scriptsRes.data : [];
+                const appts = Array.isArray(apptsRes.data) ? apptsRes.data : [];
+                setPrescriptions(scripts);
 
-                const patientIds = [...new Set(apptsRes.data.map(a => a.patientId))];
+                const patientIds = [...new Set(appts.map(a => a.patientId).filter(Boolean))];
                 const patientProfiles = await Promise.all(
                     patientIds.map(pid =>
                         axios.get(`http://localhost:3000/api/patients/profile/${pid}`, { headers: { Authorization: `Bearer ${token}` } })
