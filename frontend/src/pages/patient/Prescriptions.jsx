@@ -192,44 +192,50 @@ body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; col
             </h2>
 
             <div className="space-y-4">
-                {Array.isArray(prescriptions) ? prescriptions : []).map(script => (
-                    <div key={script._id} className="p-5 border rounded-2xl bg-white flex flex-col md:flex-row justify-between md:items-center shadow-sm hover:shadow-md transition-all">
-                        <div className="mb-3 md:mb-0 flex-1">
-                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <h4 className="font-bold text-slate-800 text-lg">{script.medication}</h4>
-                                <span className="px-2 py-0.5 bg-slate-50 text-[10px] font-black text-slate-400 rounded-full border border-slate-100">
-                                    #{script._id.slice(-4).toUpperCase()}
-                                </span>
-                                {script.signature && (
-                                    <span className="px-2 py-0.5 bg-brand-50 text-[10px] font-bold text-brand-600 rounded-full border border-brand-100 flex items-center gap-1">
-                                        <PenTool className="w-2.5 h-2.5" /> Signed
-                                    </span>
-                                )}
-                                <span className="px-2 py-0.5 bg-emerald-50 text-[10px] font-bold text-emerald-600 rounded-full border border-emerald-100 flex items-center gap-1">
-                                    <ShieldCheck className="w-2.5 h-2.5" /> QR Verified
-                                </span>
-                            </div>
-                            <p className="text-sm text-slate-500">{script.instructions}</p>
-                            <p className="text-xs text-brand-600 font-bold mt-2">
-                                Prescribed by Dr. {script.doctorName || 'Doctor'} · {new Date(script.issuedAt).toLocaleDateString()}
-                            </p>
-                        </div>
-                        <div className="flex gap-2 flex-shrink-0">
-                            <button
-                                onClick={() => openDetails(script)}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-100 transition border border-slate-200"
-                            >
-                                <Eye className="w-4 h-4" /> View Details
-                            </button>
-                            <button
-                                onClick={() => downloadPrescription(script)}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-navy-600 text-white text-xs font-bold rounded-xl hover:bg-navy-700 transition shadow-lg shadow-navy-100"
-                            >
-                                <Download className="w-4 h-4" /> Download
-                            </button>
-                        </div>
+                {prescriptions.length === 0 ? (
+                    <div className="p-10 text-center border-2 border-dashed border-slate-100 rounded-2xl">
+                        <p className="text-slate-400">No prescriptions found.</p>
                     </div>
-                ))
+                ) : (
+                    prescriptions.map(script => (
+                        <div key={script._id} className="p-5 border rounded-2xl bg-white flex flex-col md:flex-row justify-between md:items-center shadow-sm hover:shadow-md transition-all">
+                            <div className="mb-3 md:mb-0 flex-1">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                    <h4 className="font-bold text-slate-800 text-lg">{script.medication}</h4>
+                                    <span className="px-2 py-0.5 bg-slate-50 text-[10px] font-black text-slate-400 rounded-full border border-slate-100">
+                                        #{script._id.slice(-4).toUpperCase()}
+                                    </span>
+                                    {script.signature && (
+                                        <span className="px-2 py-0.5 bg-brand-50 text-[10px] font-bold text-brand-600 rounded-full border border-brand-100 flex items-center gap-1">
+                                            <PenTool className="w-2.5 h-2.5" /> Signed
+                                        </span>
+                                    )}
+                                    <span className="px-2 py-0.5 bg-emerald-50 text-[10px] font-bold text-emerald-600 rounded-full border border-emerald-100 flex items-center gap-1">
+                                        <ShieldCheck className="w-2.5 h-2.5" /> QR Verified
+                                    </span>
+                                </div>
+                                <p className="text-sm text-slate-500">{script.instructions}</p>
+                                <p className="text-xs text-brand-600 font-bold mt-2">
+                                    Prescribed by Dr. {script.doctorName || 'Doctor'} · {new Date(script.issuedAt).toLocaleDateString()}
+                                </p>
+                            </div>
+                            <div className="flex gap-2 flex-shrink-0">
+                                <button
+                                    onClick={() => openDetails(script)}
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-100 transition border border-slate-200"
+                                >
+                                    <Eye className="w-4 h-4" /> View Details
+                                </button>
+                                <button
+                                    onClick={() => downloadPrescription(script)}
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-navy-600 text-white text-xs font-bold rounded-xl hover:bg-navy-700 transition shadow-lg shadow-navy-100"
+                                >
+                                    <Download className="w-4 h-4" /> Download
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
 
             {/* ── Details Modal ── */}
