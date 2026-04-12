@@ -197,7 +197,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; col
                         <p className="text-slate-400">No prescriptions found.</p>
                     </div>
                 ) : (
-                    prescriptions.map(script => (
+                    (Array.isArray(prescriptions) ? prescriptions : []).map(script => (
                         <div key={script._id} className="p-5 border rounded-2xl bg-white flex flex-col md:flex-row justify-between md:items-center shadow-sm hover:shadow-md transition-all">
                             <div className="mb-3 md:mb-0 flex-1">
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">

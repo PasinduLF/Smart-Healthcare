@@ -112,7 +112,7 @@ export default function PatientAppointments({ setActiveCall }) {
                 {appointments.length === 0 ? (
                     <p className="text-gray-500">No appointments scheduled.</p>
                 ) : (
-                    appointments.map(appt => (
+                    (Array.isArray(appointments) ? appointments : []).map(appt => (
                         <div key={appt._id} className={`p-6 border rounded-xl bg-white/50 flex flex-col md:flex-row justify-between items-start md:items-center ${appt.status === 'cancelled' ? 'opacity-50' : ''}`}>
                             <div className={`mb-4 md:mb-0 ${appt.status === 'cancelled' || appt.status === 'rejected' ? 'opacity-50' : ''}`}>
                                 <h3 className="font-bold">Doctor ID: {appt.doctorId}</h3>
