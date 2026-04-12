@@ -63,8 +63,14 @@ export default function TransactionHistory() {
                 const res = await axios.get(getPaymentServiceUrl(`/transactions/patient/${user.id}`), {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-
-                setTransactions(Array.isArray(res.data) ? res.data : []);
+                // Defensive: handle both array and object with .data
+                let txs = [];
+                if (Array.isArray(res.data)) {
+                    txs = res.data;
+                } else if (res.data && Array.isArray(res.data.data)) {
+                    txs = res.data.data;
+                }
+                setTransactions(txs);
             } catch (err) {
                 const status = err?.response?.status;
 
@@ -76,7 +82,13 @@ export default function TransactionHistory() {
                             headers: { Authorization: `Bearer ${token}` }
                         });
 
-                        setTransactions(Array.isArray(fallbackRes.data) ? fallbackRes.data : []);
+                        let txs = [];
+                        if (Array.isArray(fallbackRes.data)) {
+                            txs = fallbackRes.data;
+                        } else if (fallbackRes.data && Array.isArray(fallbackRes.data.data)) {
+                            txs = fallbackRes.data.data;
+                        }
+                        setTransactions(txs);
                         setNotice('Showing available transaction records. Update payment service to enable user-specific filtering.');
                     } catch (fallbackErr) {
                         console.error('Fallback transaction history request failed', fallbackErr);
