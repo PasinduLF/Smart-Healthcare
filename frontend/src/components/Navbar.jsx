@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, Menu, X, User, LogOut, ChevronRight } from 'lucide-react';
+import { Activity, Menu, X, User, LogOut, ChevronRight, Bell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
@@ -61,58 +61,100 @@ export default function Navbar() {
     const isActive = (path) => location.pathname === path;
 
     return (
-        <nav className={`fixed top-0 w-full z-[100] transition-all duration-300 ${isScrolled ? 'py-3 bg-white/80 backdrop-blur-lg shadow-sm border-b' : 'py-5 bg-transparent'
-            }`}>
-            <div className="container mx-auto px-6 flex justify-between items-center">
+        <nav className="fixed top-0 w-full z-[100] bg-white shadow-sm border-b border-slate-100">
+            <div className="container mx-auto px-6 py-4 flex justify-between items-center">
                 {/* Logo */}
-                <Link to="/" className="flex items-center gap-2 group">
-                    <div className="p-2 bg-indigo-600 rounded-xl group-hover:rotate-12 transition-transform duration-300">
-                        <Activity className="w-6 h-6 text-white" />
+                <Link to="/" className="flex items-center gap-2">
+                    <div className="p-2 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-lg">
+                        <Activity className="w-5 h-5 text-white" />
                     </div>
-                    <span className="text-2xl font-black tracking-tighter text-slate-900">
-                        Smart<span className="text-indigo-600">Health</span>
+                    <span className="text-xl font-bold text-slate-900">
+                        Smart<span className="text-blue-600">Health</span>
                     </span>
                 </Link>
 
-                {/* Desktop Links */}
-                <div className="hidden lg:flex items-center gap-6">
-                    {publicLinks.map((link) => (
-                        <Link
-                            key={link.path}
-                            to={link.path}
-                            className={`text-sm font-semibold transition-colors hover:text-indigo-600 ${isActive(link.path) ? 'text-indigo-600' : 'text-slate-600'
-                                }`}
-                        >
-                            {link.name}
-                        </Link>
-                    ))}
-                    {user && <div className="h-4 w-[1px] bg-slate-200 mx-2" />}
-                    {getRoleLinks().map((link) => (
-                        <Link
-                            key={link.path}
-                            to={link.path}
-                            className={`text-sm font-bold transition-colors hover:text-indigo-600 ${isActive(link.path) ? 'text-indigo-600' : 'text-slate-900'
-                                }`}
-                        >
-                            {link.name}
-                        </Link>
-                    ))}
+                {/* Desktop Navigation Links */}
+                <div className="hidden lg:flex items-center gap-8">
+                    {user && user.role === 'patient' ? (
+                        <>
+                            <Link to="/patient/search" className={`text-sm font-medium transition-colors ${isActive('/patient/search') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                Find Doctors
+                            </Link>
+                            <Link to="/patient/appointments" className={`text-sm font-medium transition-colors ${isActive('/patient/appointments') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                My Appointments
+                            </Link>
+                            <Link to="/patient/profile" className={`text-sm font-medium transition-colors ${isActive('/patient/profile') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                Patient Details
+                            </Link>
+                            <Link to="/patient/ai" className={`text-sm font-medium transition-colors ${isActive('/patient/ai') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                AI Checker
+                            </Link>
+                            <Link to="/patient/reports" className={`text-sm font-medium transition-colors ${isActive('/patient/reports') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                Prescriptions
+                            </Link>
+                            <Link to="/patient/reports" className={`text-sm font-medium transition-colors ${isActive('/patient/reports') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                Medical Reports
+                            </Link>
+                        </>
+                    ) : user && user.role === 'doctor' ? (
+                        <>
+                            <Link to="/doctor/appointments" className={`text-sm font-medium transition-colors ${isActive('/doctor/appointments') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                Appointments
+                            </Link>
+                            <Link to="/doctor/schedule" className={`text-sm font-medium transition-colors ${isActive('/doctor/schedule') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                My Schedule
+                            </Link>
+                            <Link to="/doctor/prescriptions" className={`text-sm font-medium transition-colors ${isActive('/doctor/prescriptions') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                Prescriptions
+                            </Link>
+                            <Link to="/doctor/profile" className={`text-sm font-medium transition-colors ${isActive('/doctor/profile') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                My Profile
+                            </Link>
+                        </>
+                    ) : user && user.role === 'admin' ? (
+                        <>
+                            <Link to="/admin" className={`text-sm font-medium transition-colors ${isActive('/admin') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                Dashboard
+                            </Link>
+                            <Link to="/admin/users" className={`text-sm font-medium transition-colors ${isActive('/admin/users') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                Users
+                            </Link>
+                            <Link to="/admin/payments" className={`text-sm font-medium transition-colors ${isActive('/admin/payments') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                Revenue
+                            </Link>
+                            <Link to="/admin/settings" className={`text-sm font-medium transition-colors ${isActive('/admin/settings') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                Settings
+                            </Link>
+                        </>
+                    ) : (
+                        <>
+                            <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                Home
+                            </Link>
+                            <Link to="/services" className={`text-sm font-medium transition-colors ${isActive('/services') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                Services
+                            </Link>
+                            <Link to="/about" className={`text-sm font-medium transition-colors ${isActive('/about') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                About
+                            </Link>
+                            <Link to="/contact" className={`text-sm font-medium transition-colors ${isActive('/contact') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                Contact
+                            </Link>
+                        </>
+                    )}
                 </div>
 
-                {/* Auth Actions */}
+                {/* Right Actions */}
                 <div className="hidden md:flex items-center gap-4">
                     {user ? (
                         <div className="flex items-center gap-3">
-                            <Link
-                                to={user.role === 'patient' ? '/patient/profile' : user.role === 'doctor' ? '/doctor/profile' : '/admin/profile'}
-                                className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-100 transition-all border border-slate-100"
-                            >
-                                <User className="w-4 h-4" />
-                                {user.name.split(' ')[0]}
-                            </Link>
+                            <button className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Notifications">
+                                <Bell className="w-5 h-5" />
+                            </button>
+                            <span className="text-sm font-medium text-slate-900">{user.name.split(' ')[0]}</span>
                             <button
                                 onClick={handleLogout}
-                                className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                                className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                 title="Logout"
                             >
                                 <LogOut className="w-5 h-5" />
@@ -120,10 +162,10 @@ export default function Navbar() {
                         </div>
                     ) : (
                         <div className="flex items-center gap-3">
-                            <Link to="/login" className="px-5 py-2.5 text-sm font-bold text-slate-700 hover:text-indigo-600 transition">
+                            <Link to="/login" className="px-5 py-2 text-sm font-medium text-slate-700 hover:text-blue-600 transition">
                                 Sign In
                             </Link>
-                            <Link to="/register" className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition shadow-lg shadow-indigo-100">
+                            <Link to="/register" className="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition ">
                                 Get Started
                             </Link>
                         </div>
@@ -141,43 +183,60 @@ export default function Navbar() {
 
             {/* Mobile Menu */}
             {isMenuOpen && (
-                <div className="md:hidden absolute top-full left-0 w-full bg-white border-b shadow-xl p-6 animate-in slide-in-from-top-4 duration-200 overflow-y-auto max-h-[80vh]">
+                <div className="md:hidden absolute top-full left-0 w-full bg-white border-b border-slate-100 shadow-lg p-6 animate-in slide-in-from-top-4 duration-200">
                     <div className="flex flex-col gap-4">
-                        {[...publicLinks, ...getRoleLinks()].map((link) => (
-                            <Link
-                                key={link.path}
-                                to={link.path}
-                                onClick={() => setIsMenuOpen(false)}
-                                className={`text-lg font-bold flex justify-between items-center ${isActive(link.path) ? 'text-indigo-600' : 'text-slate-700'
-                                    }`}
-                            >
-                                {link.name}
-                                <ChevronRight className="w-5 h-5 opacity-50" />
-                            </Link>
-                        ))}
+                        {user && user.role === 'patient' ? (
+                            <>
+                                <Link to="/patient/search" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/patient/search') ? 'text-blue-600' : 'text-slate-700'}`}>Find Doctors<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/patient/appointments" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/patient/appointments') ? 'text-blue-600' : 'text-slate-700'}`}>My Appointments<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/patient/profile" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/patient/profile') ? 'text-blue-600' : 'text-slate-700'}`}>Patient Details<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/patient/ai" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/patient/ai') ? 'text-blue-600' : 'text-slate-700'}`}>AI Checker<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/patient/reports" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/patient/reports') ? 'text-blue-600' : 'text-slate-700'}`}>Prescriptions<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/patient/reports" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/patient/reports') ? 'text-blue-600' : 'text-slate-700'}`}>Medical Reports<ChevronRight className="w-5 h-5" /></Link>
+                            </>
+                        ) : user && user.role === 'doctor' ? (
+                            <>
+                                <Link to="/doctor/appointments" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/doctor/appointments') ? 'text-blue-600' : 'text-slate-700'}`}>Appointments<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/doctor/schedule" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/doctor/schedule') ? 'text-blue-600' : 'text-slate-700'}`}>My Schedule<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/doctor/prescriptions" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/doctor/prescriptions') ? 'text-blue-600' : 'text-slate-700'}`}>Prescriptions<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/doctor/profile" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/doctor/profile') ? 'text-blue-600' : 'text-slate-700'}`}>My Profile<ChevronRight className="w-5 h-5" /></Link>
+                            </>
+                        ) : user && user.role === 'admin' ? (
+                            <>
+                                <Link to="/admin" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/admin') ? 'text-blue-600' : 'text-slate-700'}`}>Dashboard<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/admin/users" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/admin/users') ? 'text-blue-600' : 'text-slate-700'}`}>Users<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/admin/payments" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/admin/payments') ? 'text-blue-600' : 'text-slate-700'}`}>Revenue<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/admin/settings" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/admin/settings') ? 'text-blue-600' : 'text-slate-700'}`}>Settings<ChevronRight className="w-5 h-5" /></Link>
+                            </>
+                        ) : (
+                            <>
+                                <Link to="/" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/') ? 'text-blue-600' : 'text-slate-700'}`}>Home<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/services" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/services') ? 'text-blue-600' : 'text-slate-700'}`}>Services<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/about" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/about') ? 'text-blue-600' : 'text-slate-700'}`}>About<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/contact" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/contact') ? 'text-blue-600' : 'text-slate-700'}`}>Contact<ChevronRight className="w-5 h-5" /></Link>
+                            </>
+                        )}
                         <hr className="my-2" />
                         {user ? (
-                            <div className="space-y-3">
-                                <button
-                                    onClick={handleLogout}
-                                    className="w-full py-4 text-red-600 font-bold border border-red-100 rounded-2xl bg-red-50"
-                                >
-                                    Sign Out
-                                </button>
-                            </div>
+                            <button
+                                onClick={handleLogout}
+                                className="w-full py-3 text-red-600 font-semibold border border-red-200 rounded-lg bg-red-50 hover:bg-red-100 transition"
+                            >
+                                Sign Out
+                            </button>
                         ) : (
                             <div className="space-y-3">
                                 <Link
                                     to="/login"
                                     onClick={() => setIsMenuOpen(false)}
-                                    className="block w-full py-4 text-center font-bold text-slate-700 bg-slate-50 rounded-2xl"
+                                    className="block w-full py-3 text-center font-semibold text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition"
                                 >
                                     Sign In
                                 </Link>
                                 <Link
                                     to="/register"
                                     onClick={() => setIsMenuOpen(false)}
-                                    className="block w-full py-4 text-center font-bold text-white bg-indigo-600 rounded-2xl"
+                                    className="block w-full py-3 text-center font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition"
                                 >
                                     Join Now
                                 </Link>
