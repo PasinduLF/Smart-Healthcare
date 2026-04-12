@@ -96,28 +96,7 @@ export default function DoctorAppointments({ setActiveCall }) {
                 const sortedAppointments = sortAppointmentsNewestFirst(incomingAppointments);
                 setAppointments(sortedAppointments);
 
-                const uniquePatientIds = Array.from(
-                    new Set(sortedAppointments.map((appt) => appt.patientId).filter(Boolean))
-                );
-
-                if (uniquePatientIds.length > 0) {
-                    const patientNameEntries = await Promise.all(
-                        uniquePatientIds.map(async (patientId) => {
-                            try {
-                                const pRes = await axios.get(getPatientServiceUrl(`/profile/${patientId}`), {
-                                    headers: { Authorization: `Bearer ${token}` }
-                                });
-                                return [patientId, pRes.data?.name || 'Unknown Patient'];
-                            } catch (err) {
-                                return [patientId, 'Unknown Patient'];
-                            }
-                        })
-                    );
-
-                    setPatientNames(Object.fromEntries(patientNameEntries));
-                } else {
-                    setPatientNames({});
-                }
+                // Names come from appointment-service enrichment (patientName); no extra fetch needed.
             } catch (err) {
                 console.error("Error fetching appointments", err);
             } finally {
@@ -234,7 +213,7 @@ export default function DoctorAppointments({ setActiveCall }) {
                                         </>
                                     )}
                                     {appt.status === 'accepted' && (
-                                        <button onClick={() => startTelemedicine(appt._id)} className="px-6 py-2.5 bg-navy-600 text-white text-xs font-bold rounded-xl hover:bg-navy-700 shadow-lg shadow-navy-100">Start Consultation</button>
+                                        <button onClick={() => startTelemedicine(appt)} className="px-6 py-2.5 bg-navy-600 text-white text-xs font-bold rounded-xl hover:bg-navy-700 shadow-lg shadow-navy-100">Start Consultation</button>
                                     )}
                                     <button 
                                         onClick={() => viewPatientProfile(appt._id, appt.patientId)} 
@@ -257,10 +236,10 @@ export default function DoctorAppointments({ setActiveCall }) {
                                         </div>
                                         <div className="space-y-1">
                                             <p><span className="text-slate-400 font-bold uppercase text-[10px]">Vitals</span><br/> <span className="font-bold text-slate-700">BP: {expandedPatient[appt._id].vitals?.bloodPressure || '-'} • HR: {expandedPatient[appt._id].vitals?.heartRate || '-'} • Wt: {expandedPatient[appt._id].vitals?.weight || '-'}</span></p>
-                                            <p className="pt-2"><span className="text-slate-400 font-bold uppercase text-[10px]">Allergies</span><br/> <span className="font-bold text-coral-600">{expandedPatient[appt._id].allergies?.length > 0 ? expandedPatient[appt._id].allergies.join(', ') : 'None Reported'}</span></p>
+                                            <p className="pt-2"><span className="text-slate-400 font-bold uppercase text-[10px]">Allergies</span><br/> <span className="font-bold text-coral-600">{Array.isArray(expandedPatient[appt._id].allergies) && expandedPatient[appt._id].allergies.length > 0 ? expandedPatient[appt._id].allergies.join(', ') : 'None Reported'}</span></p>
                                         </div>
                                     </div>
-                                    {expandedPatient[appt._id].reports?.length > 0 && (
+                                    {Array.isArray(expandedPatient[appt._id].reports) && expandedPatient[appt._id].reports.length > 0 && (
                                         <div className="mt-3 pt-3 border-t border-brand-100">
                                             <h5 className="text-[10px] font-black uppercase text-brand-600 tracking-widest mb-2 flex items-center gap-1"><FileText className="w-3 h-3" /> Medical Reports</h5>
                                             <div className="flex flex-wrap gap-2">

@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Users, MessageSquare, Maximize, Minimize } from 'lucide-react';
 import { io } from 'socket.io-client';
 import AgoraRTC from 'agora-rtc-sdk-ng';
@@ -195,7 +195,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             setRemainingMs(rem);
             setTimerRunning(!!running);
             setSlotStart(ss ? new Date(ss) : null);
-            setMessages(chat || []);
+            setMessages(Array.isArray(chat) ? chat : []);
             if (running) hadOtherJoinedRef.current = true;
         });
 
