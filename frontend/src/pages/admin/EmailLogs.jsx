@@ -21,7 +21,7 @@ export default function EmailLogs() {
                 axios.get('http://localhost:3000/api/notifications/email-logs/stats', config)
             ]);
             
-            setLogs(logsRes.data);
+            setLogs(Array.isArray(logsRes.data) ? logsRes.data : []);
             setStats(statsRes.data);
         } catch (err) {
             console.error("Error fetching email logs", err);
