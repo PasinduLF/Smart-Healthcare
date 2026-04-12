@@ -79,15 +79,6 @@ export default function Navbar() {
                     <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
                         Home
                     </Link>
-                    <Link to="/services" className={`text-sm font-medium transition-colors ${isActive('/services') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
-                        Services
-                    </Link>
-                    <Link to="/about" className={`text-sm font-medium transition-colors ${isActive('/about') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
-                        About
-                    </Link>
-                    <Link to="/contact" className={`text-sm font-medium transition-colors ${isActive('/contact') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
-                        Contact
-                    </Link>
 
                     {/* Role-specific Links */}
                     {user && user.role === 'patient' && (
@@ -209,9 +200,6 @@ export default function Navbar() {
                         ) : (
                             <>
                                 <Link to="/" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/') ? 'text-blue-600' : 'text-slate-700'}`}>Home<ChevronRight className="w-5 h-5" /></Link>
-                                <Link to="/services" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/services') ? 'text-blue-600' : 'text-slate-700'}`}>Services<ChevronRight className="w-5 h-5" /></Link>
-                                <Link to="/about" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/about') ? 'text-blue-600' : 'text-slate-700'}`}>About<ChevronRight className="w-5 h-5" /></Link>
-                                <Link to="/contact" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/contact') ? 'text-blue-600' : 'text-slate-700'}`}>Contact<ChevronRight className="w-5 h-5" /></Link>
                             </>
                         )}
                         <hr className="my-2" />
