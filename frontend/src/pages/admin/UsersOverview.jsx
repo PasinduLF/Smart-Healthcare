@@ -41,7 +41,7 @@ export default function UsersOverview() {
             await axios.put(getDoctorServiceUrl(`/verify/${doctorId}`), {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setPendingDoctors(pendingDoctors.filter(d => d._id !== doctorId));
+            setPendingDoctors((Array.isArray(pendingDoctors) ? pendingDoctors : []).filter(d => d._id !== doctorId));
             setStats(prev => ({ ...prev, doctors: prev.doctors + 1 }));
             alert("Doctor verified successfully!");
         } catch (err) {

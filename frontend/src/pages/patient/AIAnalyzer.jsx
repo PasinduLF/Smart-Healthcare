@@ -237,7 +237,7 @@ export default function AIAnalyzer() {
     const deleteSession = async (id) => {
         try {
             await axios.delete(getAiServiceUrl(`/history/${id}`), { headers: { Authorization: `Bearer ${token}` } });
-            setHistory(prev => prev.filter(h => h._id !== id));
+            setHistory(prev => (Array.isArray(prev) ? prev : []).filter(h => h._id !== id));
         } catch (e) { console.error(e); }
         setConfirmDelete(null);
     };

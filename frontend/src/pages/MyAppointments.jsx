@@ -274,10 +274,13 @@ export default function MyAppointments({ setActiveCall }) {
     const bookedSlots = useMemo(() => {
         if (!rescheduleTarget || !rescheduleData.date) return new Set();
         return new Set(
-            doctorAppointments
-                .filter((appt) => appt.date === rescheduleData.date && appt.status !== 'cancelled' && appt.status !== 'rejected' && appt._id !== rescheduleTarget._id)
-                .map((appt) => normalizeTime(appt.time))
-                .filter(Boolean)
+            (Array.isArray(doctorAppointments) ? doctorAppointments : [])
+              .filter((appt) => appt.date === rescheduleData.date && appt.status !== 'cancelled' && appt.status !== 'rejected' && appt._id !== rescheduleTarget._id)
+              .map((appt) => normalizeTime(appt.time))
+              .filter(Boolean)
+
+            (Array.isArray(normalizeListPayload(appointments)) ? normalizeListPayload(appointments) : [])
+              .filter((appt) => appt.status !== 'cancelled')
         );
     }, [doctorAppointments, rescheduleData.date, rescheduleTarget]);
 

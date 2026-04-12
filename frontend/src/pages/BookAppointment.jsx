@@ -190,7 +190,7 @@ export default function BookAppointment() {
 	const bookedSlots = useMemo(() => {
 		if (!selectedDate) return new Set();
 		return new Set(
-			normalizeListPayload(appointments)
+			(Array.isArray(normalizeListPayload(appointments)) ? normalizeListPayload(appointments) : [])
 				.filter((appt) => appt.date === selectedDate && appt.status !== 'cancelled' && appt.status !== 'rejected')
 				.map((appt) => normalizeTime(appt.time))
 				.filter(Boolean)

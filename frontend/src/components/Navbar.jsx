@@ -55,7 +55,7 @@ export default function Navbar() {
             await axios.delete(`http://localhost:3000/api/notifications/notifications/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setNotifications(prev => prev.filter(n => n._id !== id));
+            setNotifications(prev => (Array.isArray(prev) ? prev : []).filter(n => n._id !== id));
         } catch (err) {
             console.error('Failed to delete notification', err);
         }
@@ -73,7 +73,7 @@ export default function Navbar() {
     };
 
     const markAllRead = async (currentNotifications) => {
-        const unread = currentNotifications.filter(n => !n.read);
+        const unread = (Array.isArray(currentNotifications) ? currentNotifications : []).filter(n => !n.read);
         if (unread.length === 0) return;
         await Promise.allSettled(
             unread.map(n =>
@@ -82,10 +82,10 @@ export default function Navbar() {
                 })
             )
         );
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        setNotifications(prev => (Array.isArray(prev) ? prev : []).map(n => ({ ...n, read: true })));
     };
 
-    const unreadCount = notifications.filter(n => !n.read).length;
+    const unreadCount = (Array.isArray(notifications) ? notifications : []).filter(n => !n.read).length;
 
     const publicLinks = [
         { name: 'Home', path: '/' },
