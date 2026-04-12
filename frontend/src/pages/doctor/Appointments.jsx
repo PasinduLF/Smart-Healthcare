@@ -83,6 +83,7 @@ export default function DoctorAppointments({ setActiveCall }) {
     // Rejection modal state
     const [rejectModal, setRejectModal] = useState(null); // appointment id
     const [rejectReason, setRejectReason] = useState('');
+    const [patientNames, setPatientNames] = useState({}); // patientId → display name (fills gaps when API omits patientName)
 
     useEffect(() => {
         const fetchAppointments = async () => {
@@ -96,7 +97,26 @@ export default function DoctorAppointments({ setActiveCall }) {
                 const sortedAppointments = sortAppointmentsNewestFirst(incomingAppointments);
                 setAppointments(sortedAppointments);
 
-                // Names come from appointment-service enrichment (patientName); no extra fetch needed.
+                const uniquePatientIds = Array.from(
+                    new Set(sortedAppointments.map((appt) => appt.patientId).filter(Boolean))
+                );
+                if (uniquePatientIds.length > 0) {
+                    const entries = await Promise.all(
+                        uniquePatientIds.map(async (patientId) => {
+                            try {
+                                const pRes = await axios.get(getPatientServiceUrl(`/profile/${patientId}`), {
+                                    headers: { Authorization: `Bearer ${token}` }
+                                });
+                                return [patientId, pRes.data?.name || ''];
+                            } catch {
+                                return [patientId, ''];
+                            }
+                        })
+                    );
+                    setPatientNames(Object.fromEntries(entries));
+                } else {
+                    setPatientNames({});
+                }
             } catch (err) {
                 console.error("Error fetching appointments", err);
             } finally {
@@ -150,12 +170,15 @@ export default function DoctorAppointments({ setActiveCall }) {
     const handleRejectConfirm = async () => {
         if (!rejectModal) return;
         try {
-            await axios.put(`http://localhost:3000/api/appointments/reject/${rejectModal}`, {
+            await axios.put(getAppointmentServiceUrl(`/reject/${rejectModal}`), {
                 reason: rejectReason
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAppointments(appointments.map(a => a._id === rejectModal ? { ...a, status: 'rejected', rejectionReason: rejectReason } : a));
+            setAppointments((prev) => {
+                const list = Array.isArray(prev) ? prev : [];
+                return list.map(a => a._id === rejectModal ? { ...a, status: 'rejected', rejectionReason: rejectReason } : a);
+            });
             setRejectModal(null);
             setRejectReason('');
         } catch (err) {
@@ -170,6 +193,11 @@ export default function DoctorAppointments({ setActiveCall }) {
     };
 
     if (loading) return <div className="text-center py-10 text-gray-400">Loading appointments...</div>;
+
+    const appointmentRows = Array.isArray(appointments) ? appointments : [];
+
+    const displayPatientName = (appt) =>
+        patientNames[appt.patientId] || appt.patientName || appt.patientId || 'Patient';
 
     return (
         <div className="relative">
@@ -187,15 +215,15 @@ export default function DoctorAppointments({ setActiveCall }) {
             <h2 className="text-xl font-semibold mb-6">Patient Appointments</h2>
 
             <div className="space-y-4">
-                {appointments.length === 0 ? (
+                {appointmentRows.length === 0 ? (
                     <p className="text-gray-500">No appointments scheduled.</p>
                 ) : (
-                    appointments.map(appt => (
+                    appointmentRows.map(appt => (
                         <div key={appt._id} className={`border rounded-2xl bg-white/50 shadow-sm hover:shadow-md transition-all ${appt.status === 'cancelled' || appt.status === 'rejected' ? 'opacity-50' : ''}`}>
                             <div className="p-6 flex flex-col md:flex-row justify-between md:items-center">
                                 <div className="mb-4 md:mb-0">
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                        Patient: <span className="text-brand-600">{appt.patientName || appt.patientId}</span>
+                                        Patient: <span className="text-brand-600">{displayPatientName(appt)}</span>
                                     </h3>
                                     <p className="text-slate-400 text-xs font-bold mt-1 uppercase tracking-tight">{appt.date} • {appt.time} • Status: <span className={`font-black uppercase tracking-widest ${appt.status === 'accepted' ? 'text-brand-600' : appt.status === 'rejected' ? 'text-coral-500' : 'text-orange-500'}`}>{appt.status}</span></p>
                                     {appt.status === 'rejected' && appt.rejectionReason && (

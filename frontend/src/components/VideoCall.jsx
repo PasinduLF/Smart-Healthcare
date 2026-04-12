@@ -195,7 +195,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             setRemainingMs(rem);
             setTimerRunning(!!running);
             setSlotStart(ss ? new Date(ss) : null);
-            setMessages(Array.isArray(chat) ? chat : []);
+            setMessages(chat || []);
             if (running) hadOtherJoinedRef.current = true;
         });
 
