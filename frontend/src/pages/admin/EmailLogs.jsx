@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { getNotificationServiceUrl } from '../../config/api';
 import { Mail, RefreshCw, CheckCircle, XCircle, AlertCircle, Clock, Search, ChevronRight } from 'lucide-react';
 
 export default function EmailLogs() {
@@ -17,8 +18,8 @@ export default function EmailLogs() {
             const statusQuery = filter ? `?status=${filter}` : '';
             
             const [logsRes, statsRes] = await Promise.all([
-                axios.get(`http://localhost:3000/api/notifications/email-logs${statusQuery}`, config),
-                axios.get('http://localhost:3000/api/notifications/email-logs/stats', config)
+                axios.get(getNotificationServiceUrl(`/email-logs${statusQuery}`), config),
+                axios.get(getNotificationServiceUrl('/email-logs/stats'), config)
             ]);
             
             // Ensure logs is always an array

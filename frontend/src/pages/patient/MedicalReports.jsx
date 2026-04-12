@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { getPatientServiceUrl, getDoctorServiceUrl } from '../../config/api';
 import {
     FileText, Trash2, Filter, Upload, Search, Download, Eye, X,
     ChevronUp, ChevronDown, LayoutGrid, List, FolderOpen, Calendar,
@@ -63,15 +64,15 @@ export default function MedicalReports() {
             if (!user?.id) return;
             try {
                 const [reportRes, doctorRes] = await Promise.all([
-                    axios.get(`http://localhost:3000/api/patients/profile/${user.id}`, {
+                    axios.get(getPatientServiceUrl(`/profile/${user.id}`), {
                         headers: { Authorization: `Bearer ${token}` }
                     }),
-                    axios.get('http://localhost:3000/api/doctors/list', {
+                    axios.get(getDoctorServiceUrl('/list'), {
                         headers: { Authorization: `Bearer ${token}` }
                     })
                 ]);
                 setReports(reportRes.data.reports || []);
-                setDoctors(doctorRes.data || []);
+                setDoctors(Array.isArray(doctorRes.data) ? doctorRes.data : (doctorRes.data?.doctors || []));
             } catch (err) {
                 console.error("Failed to fetch data", err);
             } finally {
@@ -92,7 +93,7 @@ export default function MedicalReports() {
 
         setUploading(true);
         try {
-            const res = await axios.post(`http://localhost:3000/api/patients/upload-report/${user.id}`, formData, {
+            const res = await axios.post(getPatientServiceUrl(`/upload-report/${user.id}`), formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                     Authorization: `Bearer ${token}`
@@ -116,7 +117,7 @@ export default function MedicalReports() {
     const handleDeleteReport = async (reportId) => {
         if (!window.confirm('Delete this report permanently?')) return;
         try {
-            await axios.delete(`http://localhost:3000/api/patients/report/${user.id}/${reportId}`, {
+            await axios.delete(getPatientServiceUrl(`/report/${user.id}/${reportId}`), {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setReports(reports.filter(r => r._id !== reportId));
@@ -129,7 +130,14 @@ export default function MedicalReports() {
 
     const handleDownload = (report) => {
         const link = document.createElement('a');
-        link.href = `http://localhost:3000${report.url}`;
+        // If report.url is absolute, use as is; otherwise, prepend API base
+        let fileUrl = report.url;
+        if (fileUrl && !/^https?:\/\//i.test(fileUrl)) {
+            // Use the same base as getPatientServiceUrl
+            const apiBase = getPatientServiceUrl('').replace(/\/$/, '');
+            fileUrl = apiBase + fileUrl;
+        }
+        link.href = fileUrl;
         link.download = report.originalName || 'report';
         link.target = '_blank';
         document.body.appendChild(link);
