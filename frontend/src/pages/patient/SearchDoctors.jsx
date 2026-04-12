@@ -124,7 +124,7 @@ export default function SearchDoctors() {
                                     <Stethoscope className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-2xl text-slate-800 leading-none">{doc.name}</h3>
+                                    <h3 className="font-bold text-2xl text-slate-800 leading-none">Dr. {doc.name}</h3>
                                     <p className="text-cyan-600 font-semibold mt-2">{normalizeSpecialty(doc.specialty)}</p>
                                     <p className="text-slate-400 text-sm mt-1">Max {doc.maxPatients || 0} patients</p>
                                 </div>
