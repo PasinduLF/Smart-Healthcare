@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { Target, Heart, Award, ShieldCheck, Users, Brain, Globe, MessageSquare } from 'lucide-react';
 
 export default function About() {
