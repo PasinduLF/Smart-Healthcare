@@ -326,7 +326,7 @@ export default function MedicalReports() {
                                     required
                                 >
                                     <option value="">Select Category</option>
-                                    {REPORT_CATEGORIES.map(cat => (
+                                    {(Array.isArray(REPORT_CATEGORIES) ? REPORT_CATEGORIES : []).map(cat => (
                                         <option key={cat} value={cat}>{cat}</option>
                                     ))}
                                 </select>
@@ -339,7 +339,7 @@ export default function MedicalReports() {
                                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-sm bg-white"
                                 >
                                     <option value="">No specific doctor</option>
-                                    {doctors.map(doc => (
+                                    {(Array.isArray(doctors) ? doctors : []).map(doc => (
                                         <option key={doc._id} value={doc._id}>Dr. {doc.name} — {doc.specialty}</option>
                                     ))}
                                 </select>
@@ -397,7 +397,7 @@ export default function MedicalReports() {
                         className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none bg-white"
                     >
                         <option value="">All Categories</option>
-                        {REPORT_CATEGORIES.map(cat => (
+                        {(Array.isArray(REPORT_CATEGORIES) ? REPORT_CATEGORIES : []).map(cat => (
                             <option key={cat} value={cat}>{cat} {categoryStats[cat] ? `(${categoryStats[cat]})` : ''}</option>
                         ))}
                     </select>
@@ -424,7 +424,7 @@ export default function MedicalReports() {
             {filteredReports.length > 0 ? (
                 viewMode === 'grid' ? (
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {filteredReports.map(report => {
+                        {(Array.isArray(filteredReports) ? filteredReports : []).map(report => {
                             const CatIcon = CATEGORY_ICONS[report.category] || File;
                             const catColor = CATEGORY_COLORS[report.category] || CATEGORY_COLORS['Other'];
                             const docName = getDoctorName(report.doctorId);
@@ -497,7 +497,7 @@ export default function MedicalReports() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
-                                {filteredReports.map(report => {
+                                {(Array.isArray(filteredReports) ? filteredReports : []).map(report => {
                                     const CatIcon = CATEGORY_ICONS[report.category] || File;
                                     const catColor = CATEGORY_COLORS[report.category] || CATEGORY_COLORS['Other'];
                                     const docName = getDoctorName(report.doctorId);
