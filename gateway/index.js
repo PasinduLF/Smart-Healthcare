@@ -114,13 +114,13 @@ app.use('/api/notifications', createProxyMiddleware({
 }));
 
 // AI Support — direct handler (avoids HPM path-rewrite issues)
-app.post('/api/ai/support', (req, res) => {
+app.post('/api/ai/support', express.json(), (req, res) => {
     const aiBase = (process.env.AI_SERVICE_URL || 'http://localhost:3007').replace(/\/+$/, '');
     const targetUrl = new URL('/support', aiBase);
     const isHttps = targetUrl.protocol === 'https:';
     const lib = isHttps ? https : http;
 
-    const body = JSON.stringify(req.body);
+    const body = JSON.stringify(req.body || {});
     const options = {
         hostname: targetUrl.hostname,
         port: targetUrl.port || (isHttps ? 443 : 80),

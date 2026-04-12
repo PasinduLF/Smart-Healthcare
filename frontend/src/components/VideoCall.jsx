@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { Video, VideoOff, Mic, MicOff, PhoneOff, Clock, Users, MessageSquare, Maximize, Minimize } from 'lucide-react';
 import { io } from 'socket.io-client';
 import AgoraRTC from 'agora-rtc-sdk-ng';
@@ -112,7 +112,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     const [showChat,    setShowChat]    = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
 
-    // ── local countdown ───────────────────────────────────────────────────────
+    // â”€â”€ local countdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     useEffect(() => {
         clearInterval(tickRef.current);
         if (timerRunning && remainingMs > 0) {
@@ -126,7 +126,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
         return () => clearInterval(tickRef.current);
     }, [timerRunning]);
 
-    // ── replay local video into PiP once ref is ready ─────────────────────────
+    // â”€â”€ replay local video into PiP once ref is ready â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     useEffect(() => {
         const videoTrack = localTracksRef.current?.videoTrack;
         if (videoTrack && localVideoRef.current) {
@@ -134,7 +134,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
         }
     });
 
-    // ── fullscreen ────────────────────────────────────────────────────────────
+    // â”€â”€ fullscreen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     useEffect(() => {
         const handler = () => setIsFullscreen(!!document.fullscreenElement);
         document.addEventListener('fullscreenchange', handler);
@@ -152,7 +152,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
 
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-    // ── Agora + session bootstrap ────────────────────────────────────────────
+    // â”€â”€ Agora + session bootstrap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     useEffect(() => {
         if (!appointmentId || !role) return;
 
@@ -188,7 +188,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             }
         };
 
-        // ── session handlers ──────────────────────────────────────────────────
+        // â”€â”€ session handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         socket.on('session-joined', ({ status, remainingMs: rem, running, slotStart: ss, chat }) => {
             if (!mounted) return;
             setPhase(status === 'active' ? 'active' : 'waiting');
@@ -199,7 +199,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             if (running) hadOtherJoinedRef.current = true;
         });
 
-        // backend sends `message` field (not `code`) — fixed here
+        // backend sends `message` field (not `code`) â€” fixed here
         socket.on('session-error', ({ message, slotStart: ss }) => {
             if (!mounted) return;
             if (message === 'too_early')  { setPhase('too_early'); setSlotStart(ss ? new Date(ss) : null); }
@@ -476,7 +476,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
         };
     }, [appointmentId, role, name, date, time, user?.id, token]);
 
-    // ── controls ──────────────────────────────────────────────────────────────
+    // â”€â”€ controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const toggleVideo = async () => {
         const videoTrack = localTracksRef.current.videoTrack;
         if (!videoTrack) return;
@@ -533,10 +533,10 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
         setNewMessage('');
     };
 
-    // ── status screens ────────────────────────────────────────────────────────
+    // â”€â”€ status screens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (phase === 'connecting') return (
         <StatusScreen icon={<Clock className="w-10 h-10 text-indigo-400 animate-pulse" />}
-            title="Connecting…" subtitle="Setting up your session" />
+            title="Connectingâ€¦" subtitle="Setting up your session" />
     );
     if (phase === 'too_early') {
         const t = slotStart?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) ?? '';
@@ -564,7 +564,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                     <div className="max-h-48 overflow-y-auto p-3 space-y-2">
                         {messages.map((msg, i) => (
                             <div key={i} className={`flex flex-col ${msg.senderRole === role ? 'items-end' : 'items-start'}`}>
-                                <span className="text-[10px] text-gray-500 mb-0.5">{msg.senderName} · {msg.time}</span>
+                                <span className="text-[10px] text-gray-500 mb-0.5">{msg.senderName} Â· {msg.time}</span>
                                 <div className={`px-3 py-1.5 rounded-lg text-xs max-w-[90%] break-words
                                     ${msg.senderRole === role ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-200'}`}>
                                     {msg.text}
@@ -581,7 +581,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
             title="Session Error" subtitle={sessionError || 'Could not connect to this session.'} onClose={navigateAway} />
     );
 
-    // ── timer bar color ───────────────────────────────────────────────────────
+    // â”€â”€ timer bar color â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const isUrgent   = timerRunning && remainingMs < 60000;
     const isWarning  = timerRunning && remainingMs < 300000 && remainingMs >= 60000;
     const timerGradient = !timerRunning
@@ -598,11 +598,11 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
         ? 'text-orange-200'
         : 'text-white';
 
-    // progress bar width (0–100%)
+    // progress bar width (0â€“100%)
     const SLOT_MS = 30 * 60 * 1000;
     const progressPct = timerRunning ? Math.max(0, Math.min(100, (remainingMs / SLOT_MS) * 100)) : null;
 
-    // ── main call UI ──────────────────────────────────────────────────────────
+    // â”€â”€ main call UI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     return (
         <div ref={containerRef} className={`flex flex-col w-full shadow-2xl bg-gray-900 ${isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'rounded-2xl overflow-hidden'}`}>
 
@@ -625,14 +625,14 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                         <div className="flex flex-col leading-tight">
                             <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Time Remaining</span>
                             <span className={`font-mono text-2xl font-black tracking-tight ${timerTextClass}`}>{fmt(remainingMs)}</span>
-                            {isUrgent && <span className="text-[10px] text-red-300 font-bold mt-0.5">⚠ Less than 1 minute!</span>}
-                            {isWarning && <span className="text-[10px] text-orange-300 font-bold mt-0.5">⚠ 5 minutes remaining</span>}
+                            {isUrgent && <span className="text-[10px] text-red-300 font-bold mt-0.5">âš  Less than 1 minute!</span>}
+                            {isWarning && <span className="text-[10px] text-orange-300 font-bold mt-0.5">âš  5 minutes remaining</span>}
                         </div>
                     ) : (
                         <div className="flex flex-col leading-tight">
                             <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Status</span>
                             <span className="text-sm font-semibold text-gray-300">
-                                Waiting for {role === 'patient' ? 'doctor' : 'patient'} to join…
+                                Waiting for {role === 'patient' ? 'doctor' : 'patient'} to joinâ€¦
                             </span>
                         </div>
                     )}
@@ -653,17 +653,6 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                 </div>
             </div>
 
-                        {/* Controls */}
-                        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4 bg-gray-900/80 backdrop-blur-md px-6 py-3 rounded-full border border-gray-700 z-10">
-                            <button onClick={toggleAudio} className={`p-4 rounded-full transition outline-none ${hasAudio ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-coral-400 hover:bg-coral-500 text-white'}`}>
-                                {hasAudio ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
-                            </button>
-                            <button onClick={toggleVideo} className={`p-4 rounded-full transition outline-none ${hasVideo ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-coral-400 hover:bg-coral-500 text-white'}`}>
-                                {hasVideo ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
-                            </button>
-                            <button onClick={handleEndCall} className="p-4 rounded-full bg-coral-500 hover:bg-coral-600 text-white transition outline-none">
-                                <PhoneOff className="w-6 h-6" />
-                            </button>
             <div className="flex flex-1 min-h-0" style={isFullscreen ? {} : { height: 460 }}>
                 {/* Video area */}
                 <div className="relative flex-1 flex items-center justify-center bg-gray-900">
@@ -678,32 +667,19 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                             <div ref={remoteVideoRef}
                                 className={`absolute inset-0 w-full h-full ${remoteStream ? '' : 'hidden'}`} />
 
-            {/* Right side: Chat Overlay */}
-            <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col">
-                <div className="p-4 border-b border-gray-700 bg-gray-900 font-medium text-white shadow z-10">
-                    Live Chat
-                </div>
-                <div className="flex-1 p-4 overflow-y-auto space-y-3 flex flex-col">
-                    {messages.map((msg, idx) => {
-                        const isMe = msg.socketId === socketRef.current?.id;
-                        return (
-                            <div key={idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                <span className="text-[10px] text-gray-400 mb-1">{msg.time} {isMe ? '(You)' : ''}</span>
-                                <div className={`px-4 py-2 rounded-xl text-sm max-w-[90%] break-words ${isMe ? 'bg-brand-500 text-white rounded-br-none' : 'bg-gray-700 text-gray-100 rounded-bl-none'}`}>
-                                    {msg.text}
                             {/* Remote placeholder */}
                             {!remoteStream && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
                                     <div className="text-center text-gray-500">
                                         <Video className="w-14 h-14 mx-auto mb-3 opacity-20" />
                                         <p className="text-sm">
-                                            {otherPresent ? 'Establishing video connection…' : `Waiting for ${role === 'patient' ? 'doctor' : 'patient'} to join…`}
+                                            {otherPresent ? 'Establishing video connection\u2026' : `Waiting for ${role === 'patient' ? 'doctor' : 'patient'} to join\u2026`}
                                         </p>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Waiting overlay — two distinct states */}
+                            {/* Waiting overlay */}
                             {phase === 'waiting' && !otherPresent && (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/90 z-20 gap-3">
                                     <div className="w-16 h-16 rounded-full bg-indigo-900/60 flex items-center justify-center animate-pulse">
@@ -714,7 +690,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                                             <p className="text-white font-bold text-lg">
                                                 {role === 'patient' ? 'Doctor' : 'Patient'} left the call
                                             </p>
-                                            <p className="text-gray-400 text-sm">Timer is paused. Waiting for them to rejoin…</p>
+                                            <p className="text-gray-400 text-sm">Timer is paused. Waiting for them to rejoin\u2026</p>
                                         </>
                                     ) : (
                                         <>
@@ -766,10 +742,6 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                         </>
                     )}
                 </div>
-                <form onSubmit={sendMessage} className="p-4 border-t border-gray-700 bg-gray-900 flex gap-2">
-                    <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type message..." className="flex-1 px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-brand-500 outline-none text-sm placeholder-gray-500" />
-                    <button type="submit" className="px-4 py-2 bg-brand-500 text-white rounded-lg text-sm font-medium hover:bg-brand-600 transition outline-none">Send</button>
-                </form>
 
                 {/* Chat panel */}
                 {showChat && (
@@ -785,7 +757,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                                 const isMe = msg.senderRole === role;
                                 return (
                                     <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                        <span className="text-[10px] text-gray-400 mb-0.5">{msg.senderName} · {msg.time}</span>
+                                        <span className="text-[10px] text-gray-400 mb-0.5">{msg.senderName} \u00b7 {msg.time}</span>
                                         <div className={`px-3 py-2 rounded-xl text-sm max-w-[90%] break-words
                                             ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-100 rounded-bl-none'}`}>
                                             {msg.text}
@@ -797,7 +769,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                         </div>
                         <form onSubmit={sendMessage} className="p-3 border-t border-gray-700 bg-gray-900 flex gap-2">
                             <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)}
-                                placeholder="Type message…"
+                                placeholder="Type message\u2026"
                                 className="flex-1 px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none text-sm placeholder-gray-500" />
                             <button type="submit"
                                 className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">

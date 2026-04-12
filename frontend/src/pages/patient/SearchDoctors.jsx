@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Search, UserCheck, Star, Filter } from 'lucide-react';
+import { getDoctorServiceUrl } from '../../config/api';
 
 export default function SearchDoctors() {
     const { token } = useAuth();
@@ -18,7 +19,10 @@ export default function SearchDoctors() {
                 const docRes = await axios.get(getDoctorServiceUrl('/list'), {
                     headers: { Authorization: `Bearer ${token}` } 
                 });
-                setDoctors(docRes.data);
+                const data = docRes.data;
+                // Handle both array response and { doctors: [...] } shape
+                const list = Array.isArray(data) ? data : (data?.doctors || []);
+                setDoctors(list);
             } catch (err) {
                 console.error("Failed to fetch doctors", err);
             } finally {

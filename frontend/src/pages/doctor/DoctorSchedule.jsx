@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { ShieldAlert } from 'lucide-react';
+import { getDoctorServiceUrl } from '../../config/api';
 
 const dayOptions = [
     { key: 'Mon', label: 'Monday' },
@@ -90,7 +91,13 @@ export default function DoctorSchedule() {
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
         try {
-            const payload = { ...profileData, availability: weeklyAvailability };
+            const payload = {
+                name: profileData.name,
+                specialty: profileData.specialization, // backend uses 'specialty'
+                experience: profileData.experience,
+                consultationFee: profileData.consultationFee,
+                availability: weeklyAvailability
+            };
             await axios.put(getDoctorServiceUrl(`/profile/${user.id}`), payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
