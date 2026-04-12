@@ -19,6 +19,9 @@ export const PAYMENT_SERVICE_BASE_URL = stripTrailingSlash((import.meta.env.VITE
 // Telemedicine relies on a websocket backend, so never default to the frontend origin in production.
 export const TELE_BASE_URL = safeEnvTeleBaseUrl || (isLocalDevHost ? 'http://localhost:3004' : '');
 
+// Notification service base URL
+export const NOTIFICATION_SERVICE_BASE_URL = stripTrailingSlash((import.meta.env.VITE_NOTIFICATION_SERVICE_URL || '').trim());
+
 export const getGatewayUrl = (path = '') => `${API_BASE_URL}${ensureLeadingSlash(path)}`;
 
 export const getPatientServiceUrl = (path = '') => {
@@ -106,4 +109,19 @@ export const getTelemedicineServiceUrl = (path = '') => {
 	}
 
 	return `${TELE_BASE_URL}${ensureLeadingSlash(path)}`;
+};
+
+export const getNotificationServiceUrl = (path = '') => {
+	const normalizedPath = ensureLeadingSlash(path);
+
+	if (NOTIFICATION_SERVICE_BASE_URL) {
+		const directNotificationPath = normalizedPath.replace(/^\/api\/notifications(?=\/|$)/, '');
+		return `${NOTIFICATION_SERVICE_BASE_URL}${directNotificationPath}`;
+	}
+
+	const prefixedPath = normalizedPath.startsWith('/api/notifications')
+		? normalizedPath
+		: `/api/notifications${normalizedPath}`;
+
+	return `${API_BASE_URL}${prefixedPath}`;
 };
