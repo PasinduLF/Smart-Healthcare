@@ -195,7 +195,7 @@ export default function Navbar() {
                                     <div className="absolute right-0 top-full mt-2 w-96 bg-white border border-slate-100 rounded-2xl shadow-2xl shadow-slate-200/50 z-[200] overflow-hidden">
                                         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-50 bg-slate-50/50">
                                             <h3 className="text-sm font-bold text-slate-700">Notifications</h3>
-                                            {notifications.length > 0 && (
+                                            {(Array.isArray(notifications) ? notifications : []).length > 0 && (
                                                 <button
                                                     onClick={clearAllNotifications}
                                                     className="text-[10px] font-bold text-coral-400 hover:text-coral-600 uppercase tracking-wider"
@@ -205,10 +205,10 @@ export default function Navbar() {
                                             )}
                                         </div>
                                         <div className="max-h-80 overflow-y-auto">
-                                            {notifications.length === 0 ? (
+                                            {(Array.isArray(notifications) ? notifications : []).length === 0 ? (
                                                 <p className="text-sm text-slate-400 text-center py-8">No notifications</p>
                                             ) : (
-                                                notifications.map(notif => (
+                                                (Array.isArray(notifications) ? notifications : []).map(notif => (
                                                     <div key={notif._id} className={`px-4 py-3 border-b border-slate-50 hover:bg-slate-50/50 transition ${!notif.read ? 'bg-brand-50/30' : ''}`}>
                                                         <div className="flex justify-between items-start gap-2">
                                                             <div className="flex-1 min-w-0">
