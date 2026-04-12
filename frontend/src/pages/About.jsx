@@ -1,6 +1,7 @@
 import React from 'react';
 import { Target, Heart, Award, ShieldCheck, Users, Brain, Globe, MessageSquare } from 'lucide-react';
 
+
 export default function About() {
     return (
         <div className="pt-20 pb-20">
