@@ -75,8 +75,24 @@ export default function Navbar() {
 
                 {/* Desktop Navigation Links */}
                 <div className="hidden lg:flex items-center gap-8">
-                    {user && user.role === 'patient' ? (
+                    {/* Public Home Links */}
+                    <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                        Home
+                    </Link>
+                    <Link to="/services" className={`text-sm font-medium transition-colors ${isActive('/services') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                        Services
+                    </Link>
+                    <Link to="/about" className={`text-sm font-medium transition-colors ${isActive('/about') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                        About
+                    </Link>
+                    <Link to="/contact" className={`text-sm font-medium transition-colors ${isActive('/contact') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                        Contact
+                    </Link>
+
+                    {/* Role-specific Links */}
+                    {user && user.role === 'patient' && (
                         <>
+                            <div className="w-px h-5 bg-slate-200"></div>
                             <Link to="/patient/search" className={`text-sm font-medium transition-colors ${isActive('/patient/search') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
                                 Find Doctors
                             </Link>
@@ -92,12 +108,12 @@ export default function Navbar() {
                             <Link to="/patient/reports" className={`text-sm font-medium transition-colors ${isActive('/patient/reports') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
                                 Prescriptions
                             </Link>
-                            <Link to="/patient/reports" className={`text-sm font-medium transition-colors ${isActive('/patient/reports') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
-                                Medical Reports
-                            </Link>
                         </>
-                    ) : user && user.role === 'doctor' ? (
+                    )}
+
+                    {user && user.role === 'doctor' && (
                         <>
+                            <div className="w-px h-5 bg-slate-200"></div>
                             <Link to="/doctor/appointments" className={`text-sm font-medium transition-colors ${isActive('/doctor/appointments') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
                                 Appointments
                             </Link>
@@ -107,12 +123,12 @@ export default function Navbar() {
                             <Link to="/doctor/prescriptions" className={`text-sm font-medium transition-colors ${isActive('/doctor/prescriptions') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
                                 Prescriptions
                             </Link>
-                            <Link to="/doctor/profile" className={`text-sm font-medium transition-colors ${isActive('/doctor/profile') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
-                                My Profile
-                            </Link>
                         </>
-                    ) : user && user.role === 'admin' ? (
+                    )}
+
+                    {user && user.role === 'admin' && (
                         <>
+                            <div className="w-px h-5 bg-slate-200"></div>
                             <Link to="/admin" className={`text-sm font-medium transition-colors ${isActive('/admin') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
                                 Dashboard
                             </Link>
@@ -121,24 +137,6 @@ export default function Navbar() {
                             </Link>
                             <Link to="/admin/payments" className={`text-sm font-medium transition-colors ${isActive('/admin/payments') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
                                 Revenue
-                            </Link>
-                            <Link to="/admin/settings" className={`text-sm font-medium transition-colors ${isActive('/admin/settings') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
-                                Settings
-                            </Link>
-                        </>
-                    ) : (
-                        <>
-                            <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
-                                Home
-                            </Link>
-                            <Link to="/services" className={`text-sm font-medium transition-colors ${isActive('/services') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
-                                Services
-                            </Link>
-                            <Link to="/about" className={`text-sm font-medium transition-colors ${isActive('/about') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
-                                About
-                            </Link>
-                            <Link to="/contact" className={`text-sm font-medium transition-colors ${isActive('/contact') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
-                                Contact
                             </Link>
                         </>
                     )}
