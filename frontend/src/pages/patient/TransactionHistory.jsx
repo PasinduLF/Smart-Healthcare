@@ -139,7 +139,7 @@ export default function TransactionHistory() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {transactions.map((tx) => {
+                                {(Array.isArray(transactions) ? transactions : []).map((tx) => {
                                     const status = String(tx?.status || 'unknown').toLowerCase();
                                     const isSuccess = status === 'success' || status === 'succeeded';
 

@@ -33,12 +33,12 @@ export default function SearchDoctors() {
     }, [token]);
 
     const specialties = useMemo(() => {
-        const set = new Set(doctors.map(d => d.specialty).filter(Boolean));
+        const set = new Set((Array.isArray(doctors) ? doctors : []).map(d => d.specialty).filter(Boolean));
         return Array.from(set).sort();
     }, [doctors]);
 
     const filteredDoctors = useMemo(() => {
-        return doctors.filter(doc => {
+        return (Array.isArray(doctors) ? doctors : []).filter(doc => {
             const term = searchTerm.toLowerCase();
             const matchesSearch = !term || 
                 (doc.name && doc.name.toLowerCase().includes(term)) || 
@@ -79,7 +79,7 @@ export default function SearchDoctors() {
                             className="pl-11 pr-8 py-3 bg-slate-50 border border-transparent focus:bg-white focus:border-brand-500 rounded-xl outline-none transition font-medium text-slate-700 text-sm appearance-none cursor-pointer min-w-[200px]"
                         >
                             <option value="">All Specialties</option>
-                            {specialties.map(s => (
+                            {(Array.isArray(specialties) ? specialties : []).map(s => (
                                 <option key={s} value={s}>{s}</option>
                             ))}
                         </select>
@@ -103,7 +103,7 @@ export default function SearchDoctors() {
             {/* Specialty Quick Chips */}
             {specialties.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                    {specialties.map(s => (
+                    {(Array.isArray(specialties) ? specialties : []).map(s => (
                         <button
                             key={s}
                             onClick={() => setSelectedSpecialty(selectedSpecialty === s ? '' : s)}
@@ -127,7 +127,7 @@ export default function SearchDoctors() {
                         <p className="text-gray-300 text-sm mt-1">Try adjusting your search or filters.</p>
                     </div>
                 ) : (
-                    filteredDoctors.map(doc => (
+                    (Array.isArray(filteredDoctors) ? filteredDoctors : []).map(doc => (
                         <div key={doc._id} className="p-5 border border-slate-100 rounded-2xl hover:shadow-lg transition bg-white group">
                             <div className="flex items-start gap-4">
                                 <div className="w-12 h-12 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">

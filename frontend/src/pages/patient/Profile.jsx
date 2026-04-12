@@ -111,9 +111,9 @@ export default function Profile() {
                         </button>
                     </div>
 
-                    {profileData.allergies.length > 0 ? (
+                    {Array.isArray(profileData.allergies) && profileData.allergies.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
-                            {profileData.allergies.map((allergy, idx) => (
+                            {(Array.isArray(profileData.allergies) ? profileData.allergies : []).map((allergy, idx) => (
                                 <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-coral-50 text-coral-700 rounded-full text-sm font-medium border border-coral-100">
                                     {allergy}
                                     <button type="button" onClick={() => removeAllergy(allergy)} className="text-coral-400 hover:text-coral-600 transition">×</button>
