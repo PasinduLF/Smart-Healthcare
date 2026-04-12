@@ -17,9 +17,7 @@ export default function Login() {
         
         const res = await login(email, password, role);
         if (res.success) {
-            if (res.role === 'admin') navigate('/admin');
-            else if (res.role === 'doctor') navigate('/doctor');
-            else navigate('/patient');
+            navigate('/');
         } else {
             setError(res.error || 'Login failed');
         }
