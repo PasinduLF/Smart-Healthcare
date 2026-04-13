@@ -143,6 +143,16 @@ app.get('/stats', async (req, res) => {
     }
 });
 
+// --- ADMIN ROUTES (Protected by Gateway) ---
+app.get('/admin/all', async (req, res) => {
+    try {
+        const appointments = await Appointment.find().sort({ createdAt: -1 });
+        res.json(appointments);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get('/health', (req, res) => {
     res.json({ status: 'Appointment Service is running' });
 });

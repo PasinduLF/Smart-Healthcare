@@ -58,6 +58,12 @@ app.use('/api/doctors/admin', authenticateToken, requireRole(['admin']), createP
     pathRewrite: { '^/api/doctors/admin': '/admin' }
 }));
 
+app.use('/api/appointments/admin', authenticateToken, requireRole(['admin']), createProxyMiddleware({
+    target: process.env.APPOINTMENT_SERVICE_URL || 'https://smart-healthcare-vj4l.onrender.com',
+    changeOrigin: true,
+    pathRewrite: { '^/api/appointments/admin': '/admin' }
+}));
+
 app.get('/api/patients/stats', authenticateToken, requireRole(['admin']), createProxyMiddleware({
     target: process.env.PATIENT_SERVICE_URL || 'https://smart-healthcare-lckn.onrender.com',
     changeOrigin: true,
