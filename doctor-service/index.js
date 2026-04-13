@@ -88,6 +88,7 @@ const doctorSchema = new mongoose.Schema({
     avatarUrl: { type: String, default: '' },
     availability: { type: Array, default: [] },
     verified: { type: Boolean, default: false },
+    isSuspended: { type: Boolean, default: false },
     maxPatients: { type: Number, default: 10 },
     createdAt: { type: Date, default: Date.now }
 });
@@ -152,6 +153,9 @@ app.post('/login', async (req, res) => {
         }
         
         if (!user) return res.status(404).json({ error: 'User not found' });
+        if (role === 'doctor' && user.isSuspended) {
+            return res.status(403).json({ error: 'Account suspended by administrator' });
+        }
         
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
@@ -368,6 +372,38 @@ app.use((err, req, res, next) => {
         return res.status(500).json({ error: err.message || 'Server error' });
     }
     next();
+});
+
+// --- ADMIN ENDPOINTS (Protected by Gateway) ---
+app.get('/admin/all', async (req, res) => {
+    try {
+        const doctors = await Doctor.find().select('-password -__v').sort({ createdAt: -1 });
+        res.json(doctors);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/admin/suspend/:id', async (req, res) => {
+    try {
+        const doctor = await Doctor.findById(req.params.id);
+        if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
+        doctor.isSuspended = !doctor.isSuspended;
+        await doctor.save();
+        res.json({ message: `Doctor ${doctor.isSuspended ? 'suspended' : 'restored'} successfully`, isSuspended: doctor.isSuspended });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/admin/:id', async (req, res) => {
+    try {
+        const deletedDoctor = await Doctor.findByIdAndDelete(req.params.id);
+        if (!deletedDoctor) return res.status(404).json({ error: 'Doctor not found' });
+        res.json({ message: 'Doctor permanently deleted' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.listen(PORT, () => console.log(`Doctor Service listening on port ${PORT}`));

@@ -46,6 +46,18 @@ app.get('/health', (req, res) => {
 });
 
 // Admin specific routes from services (protected by role)
+app.use('/api/patients/admin', authenticateToken, requireRole(['admin']), createProxyMiddleware({
+    target: process.env.PATIENT_SERVICE_URL || 'https://smart-healthcare-lckn.onrender.com',
+    changeOrigin: true,
+    pathRewrite: { '^/api/patients/admin': '/admin' }
+}));
+
+app.use('/api/doctors/admin', authenticateToken, requireRole(['admin']), createProxyMiddleware({
+    target: process.env.DOCTOR_SERVICE_URL || 'https://smart-healthcare-doctor-service.onrender.com',
+    changeOrigin: true,
+    pathRewrite: { '^/api/doctors/admin': '/admin' }
+}));
+
 app.get('/api/patients/stats', authenticateToken, requireRole(['admin']), createProxyMiddleware({
     target: process.env.PATIENT_SERVICE_URL || 'https://smart-healthcare-lckn.onrender.com',
     changeOrigin: true,

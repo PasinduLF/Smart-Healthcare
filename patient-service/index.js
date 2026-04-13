@@ -109,6 +109,7 @@ const patientSchema = new mongoose.Schema({
         uploadedAt: { type: Date, default: Date.now }
     }],
     avatarUrl: { type: String, default: '' },
+    isSuspended: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now }
 });
 const Patient = mongoose.model('Patient', patientSchema);
@@ -158,6 +159,9 @@ app.post('/login', async (req, res) => {
         }
         
         if (!user) return res.status(404).json({ error: 'User not found' });
+        if (role === 'patient' && user.isSuspended) {
+            return res.status(403).json({ error: 'Account suspended by administrator' });
+        }
         
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
@@ -431,6 +435,38 @@ const seedAdmin = async () => {
         console.error('Error seeding admin:', err);
     }
 };
+
+// --- ADMIN ENDPOINTS (Protected by Gateway) ---
+app.get('/admin/all', async (req, res) => {
+    try {
+        const patients = await Patient.find().select('-password -__v').sort({ createdAt: -1 });
+        res.json(patients);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/admin/suspend/:id', async (req, res) => {
+    try {
+        const patient = await Patient.findById(req.params.id);
+        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+        patient.isSuspended = !patient.isSuspended;
+        await patient.save();
+        res.json({ message: `Patient ${patient.isSuspended ? 'suspended' : 'restored'} successfully`, isSuspended: patient.isSuspended });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/admin/:id', async (req, res) => {
+    try {
+        const deletedPatient = await Patient.findByIdAndDelete(req.params.id);
+        if (!deletedPatient) return res.status(404).json({ error: 'Patient not found' });
+        res.json({ message: 'Patient permanently deleted' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 app.listen(PORT, () => {
     console.log(`Patient Service listening on port ${PORT}`);
