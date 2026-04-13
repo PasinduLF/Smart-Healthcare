@@ -605,7 +605,6 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
     // ── main call UI ──────────────────────────────────────────────────────────
     return (
         <div ref={containerRef} className={`flex flex-col w-full shadow-2xl bg-gray-900 ${isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'rounded-2xl overflow-hidden'}`}>
-
             {/* Timer bar */}
             <div className={`relative flex items-center justify-between px-6 py-3 transition-colors duration-700 shrink-0 ${timerGradient}`}>
                 {/* Progress track */}
@@ -653,7 +652,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                 </div>
             </div>
 
-            <div className="flex flex-1 min-h-0" style={isFullscreen ? {} : { height: 460 }}>
+            <div className={`flex flex-1 min-h-0 w-full ${!isFullscreen ? 'aspect-video' : ''}`} style={isFullscreen ? {} : { minHeight: '600px', maxHeight: '85vh' }}>
                 {/* Video area */}
                 <div className="relative flex-1 flex items-center justify-center bg-gray-900">
                     {mediaError ? (
@@ -713,7 +712,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                             )}
 
                             {/* Local PiP */}
-                            <div className="absolute bottom-16 right-4 w-44 h-32 bg-gray-950 rounded-xl overflow-hidden border-2 border-gray-700 shadow-xl z-10">
+                            <div className={`absolute bottom-20 right-6 bg-gray-950 rounded-xl overflow-hidden border-2 border-gray-700 shadow-2xl z-10 transition-all duration-300 ${isFullscreen ? 'w-96 h-72' : 'w-80 h-60'}`}>
                                 <div ref={localVideoRef}
                                     className="w-full h-full"
                                     style={{ visibility: hasVideo ? 'visible' : 'hidden' }} />
@@ -758,8 +757,7 @@ export default function VideoCall({ appointmentId, date, time, onEndCall }) {
                                 return (
                                     <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                                         <span className="text-[10px] text-gray-400 mb-0.5">{msg.senderName} · {msg.time}</span>
-                                        <div className={`px-3 py-2 rounded-xl text-sm max-w-[90%] break-words
-                                            ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-100 rounded-bl-none'}`}>
+                                        <div className={`px-3 py-2 rounded-xl text-sm max-w-[90%] break-words ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-100 rounded-bl-none'}`}>
                                             {msg.text}
                                         </div>
                                     </div>
