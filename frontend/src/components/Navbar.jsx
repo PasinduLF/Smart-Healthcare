@@ -228,6 +228,7 @@ export default function Navbar() {
                                     Join Now
                                 </Link>
                             </div>
+                            
                         )}
                     </div>
                 </div>
