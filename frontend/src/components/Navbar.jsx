@@ -210,6 +210,7 @@ export default function Navbar() {
                             >
                                 Sign Out
                             </button>
+                            
                         ) : (
                             <div className="space-y-3">
                                 <Link
