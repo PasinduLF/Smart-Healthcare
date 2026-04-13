@@ -22,9 +22,8 @@ export default function UsersOverview() {
                     axios.get(getDoctorServiceUrl('/stats'), config),
                     axios.get(getAppointmentServiceUrl('/stats'), config),
                     axios.get(getDoctorServiceUrl('/pending'), config),
-                    // Using getGatewayUrl because the new admin paths are mapped at gateway root
-                    axios.get(getGatewayUrl('/api/doctors/admin/all'), config).catch(() => ({ data: [] })),
-                    axios.get(getGatewayUrl('/api/patients/admin/all'), config).catch(() => ({ data: [] }))
+                    axios.get(getDoctorServiceUrl('/admin/all'), config).catch(() => ({ data: [] })),
+                    axios.get(getPatientServiceUrl('/admin/all'), config).catch(() => ({ data: [] }))
                 ]);
                 
                 setStats({
@@ -65,8 +64,8 @@ export default function UsersOverview() {
     const handleSuspend = async (id, type) => {
         try {
             const url = type === 'doctor' 
-                ? getGatewayUrl(`/api/doctors/admin/suspend/${id}`)
-                : getGatewayUrl(`/api/patients/admin/suspend/${id}`);
+                ? getDoctorServiceUrl(`/admin/suspend/${id}`)
+                : getPatientServiceUrl(`/admin/suspend/${id}`);
                 
             const res = await axios.put(url, {}, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -88,8 +87,8 @@ export default function UsersOverview() {
         
         try {
             const url = type === 'doctor' 
-                ? getGatewayUrl(`/api/doctors/admin/${id}`)
-                : getGatewayUrl(`/api/patients/admin/${id}`);
+                ? getDoctorServiceUrl(`/admin/${id}`)
+                : getPatientServiceUrl(`/admin/${id}`);
                 
             await axios.delete(url, { headers: { Authorization: `Bearer ${token}` } });
             
