@@ -126,6 +126,9 @@ export default function Navbar() {
                             <Link to="/admin/users" className={`text-sm font-medium transition-colors ${isActive('/admin/users') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
                                 Users
                             </Link>
+                            <Link to="/admin/appointments" className={`text-sm font-medium transition-colors ${isActive('/admin/appointments') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
+                                Appointments
+                            </Link>
                             <Link to="/admin/payments" className={`text-sm font-medium transition-colors ${isActive('/admin/payments') ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}>
                                 Revenue
                             </Link>
@@ -194,6 +197,7 @@ export default function Navbar() {
                             <>
                                 <Link to="/admin" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/admin') ? 'text-blue-600' : 'text-slate-700'}`}>Dashboard<ChevronRight className="w-5 h-5" /></Link>
                                 <Link to="/admin/users" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/admin/users') ? 'text-blue-600' : 'text-slate-700'}`}>Users<ChevronRight className="w-5 h-5" /></Link>
+                                <Link to="/admin/appointments" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/admin/appointments') ? 'text-blue-600' : 'text-slate-700'}`}>Appointments<ChevronRight className="w-5 h-5" /></Link>
                                 <Link to="/admin/payments" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/admin/payments') ? 'text-blue-600' : 'text-slate-700'}`}>Revenue<ChevronRight className="w-5 h-5" /></Link>
                                 <Link to="/admin/settings" onClick={() => setIsMenuOpen(false)} className={`text-lg font-semibold flex justify-between items-center ${isActive('/admin/settings') ? 'text-blue-600' : 'text-slate-700'}`}>Settings<ChevronRight className="w-5 h-5" /></Link>
                             </>

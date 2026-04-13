@@ -41,6 +41,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import UsersOverview from './pages/admin/UsersOverview';
 import AdminPayments from './pages/admin/Payments';
 import AdminSettings from './pages/admin/Settings';
+import AppointmentsOverview from './pages/admin/AppointmentsOverview';
 
 import { Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
@@ -129,6 +130,7 @@ function AppContent() {
                         <Route path="profile" element={<MyProfile />} />
                         <Route path="users" element={<UsersOverview />} />
                         <Route path="payments" element={<AdminPayments />} />
+                        <Route path="appointments" element={<AppointmentsOverview />} />
                         <Route path="settings" element={<AdminSettings />} />
                     </Route>
 

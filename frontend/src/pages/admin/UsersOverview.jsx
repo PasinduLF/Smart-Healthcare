@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { getAppointmentServiceUrl, getDoctorServiceUrl, getPatientServiceUrl, getGatewayUrl } from '../../config/api';
-import { Users, ShieldCheck, Activity, Search, Ban, Trash2, CheckCircle, X, Calendar, Filter } from 'lucide-react';
+import { Users, ShieldCheck, Activity, Search, Ban, Trash2, CheckCircle, X } from 'lucide-react';
 
 export default function UsersOverview() {
     const { token } = useAuth();
@@ -10,9 +10,7 @@ export default function UsersOverview() {
     const [pendingDoctors, setPendingDoctors] = useState([]);
     const [allDoctors, setAllDoctors] = useState([]);
     const [allPatients, setAllPatients] = useState([]);
-    const [allAppointments, setAllAppointments] = useState([]);
-    const [activeTab, setActiveTab] = useState('queue'); // queue | doctors | patients | appointments
-    const [apptFilter, setApptFilter] = useState('all'); // all | pending | accepted | rejected | cancelled
+    const [activeTab, setActiveTab] = useState('queue'); // queue | doctors | patients
     const [selectedUser, setSelectedUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -20,14 +18,13 @@ export default function UsersOverview() {
         const fetchData = async () => {
             try {
                 const config = { headers: { Authorization: `Bearer ${token}` } };
-                const [pRes, dRes, aRes, pendRes, allDocsRes, allPatRes, allApptsRes] = await Promise.all([
+                const [pRes, dRes, aRes, pendRes, allDocsRes, allPatRes] = await Promise.all([
                     axios.get(getPatientServiceUrl('/stats'), config),
                     axios.get(getDoctorServiceUrl('/stats'), config),
                     axios.get(getAppointmentServiceUrl('/stats'), config),
                     axios.get(getDoctorServiceUrl('/pending'), config),
                     axios.get(getDoctorServiceUrl('/admin/all'), config).catch(() => ({ data: [] })),
-                    axios.get(getPatientServiceUrl('/admin/all'), config).catch(() => ({ data: [] })),
-                    axios.get(getAppointmentServiceUrl('/admin/all'), config).catch(() => ({ data: [] }))
+                    axios.get(getPatientServiceUrl('/admin/all'), config).catch(() => ({ data: [] }))
                 ]);
                 
                 setStats({
@@ -38,7 +35,6 @@ export default function UsersOverview() {
                 setPendingDoctors(pendRes.data);
                 setAllDoctors(allDocsRes.data);
                 setAllPatients(allPatRes.data);
-                setAllAppointments(allApptsRes.data);
             } catch (err) {
                 console.error("Error fetching admin data", err);
             } finally {
@@ -190,75 +186,6 @@ export default function UsersOverview() {
         </div>
     );
 
-    const renderAppointmentsList = () => {
-        const filteredAppts = apptFilter === 'all' 
-            ? allAppointments 
-            : allAppointments.filter(a => a.status === apptFilter);
-
-        return (
-            <div className="space-y-4">
-                <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                    {['all', 'pending', 'accepted', 'rejected', 'cancelled'].map(status => (
-                        <button 
-                            key={status}
-                            onClick={() => setApptFilter(status)}
-                            className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-full transition-all border ${apptFilter === status ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400 hover:text-slate-900'}`}
-                        >
-                            {status} {status !== 'all' && `(${allAppointments.filter(a => a.status === status).length})`}
-                        </button>
-                    ))}
-                </div>
-
-                {filteredAppts.length === 0 ? (
-                    <div className="p-12 text-center border-4 border-dashed border-slate-50 rounded-[40px]">
-                        <p className="text-slate-300 font-bold italic">No appointments match the selected filter.</p>
-                    </div>
-                ) : (
-                    filteredAppts.map(appt => {
-                        const doctor = allDoctors.find(d => d._id === appt.doctorId);
-                        const patient = allPatients.find(p => p._id === appt.patientId);
-                        
-                        const statusColors = {
-                            pending: 'bg-orange-50 text-orange-600 border-orange-100',
-                            accepted: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-                            rejected: 'bg-red-50 text-red-600 border-red-100',
-                            cancelled: 'bg-slate-50 text-slate-500 border-slate-200'
-                        };
-
-                        return (
-                            <div key={appt._id} className="p-6 border border-slate-100 rounded-2xl bg-white flex flex-col lg:flex-row lg:items-center justify-between shadow-sm hover:shadow-xl hover:shadow-slate-100 transition-all">
-                                <div className="mb-4 lg:mb-0 flex gap-4 items-center">
-                                    <div className="w-12 h-12 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center">
-                                        <Calendar className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-black text-slate-800 tracking-tight flex items-center gap-2">
-                                            {patient ? patient.name : 'Unknown Patient'}
-                                            <span className="text-slate-300 font-normal">with</span>
-                                            {doctor ? `Dr. ${doctor.name}` : 'Unknown Doctor'}
-                                        </h3>
-                                        <p className="text-slate-500 font-bold text-xs uppercase tracking-tight mt-1 items-center gap-2 flex">
-                                            <span>{appt.date}</span> • <span>{appt.time}</span>
-                                            <span className={`px-2 py-0.5 ml-2 text-[9px] font-black uppercase tracking-widest rounded-full border ${statusColors[appt.status] || statusColors.cancelled}`}>
-                                                {appt.status}
-                                            </span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Payment</p>
-                                    <p className={`font-bold text-xs uppercase tracking-wide flex items-center justify-end gap-1 ${appt.paymentStatus === 'paid' ? 'text-emerald-500' : 'text-slate-400'}`}>
-                                        {appt.paymentStatus === 'paid' && <CheckCircle className="w-3 h-3" />} {appt.paymentStatus}
-                                    </p>
-                                </div>
-                            </div>
-                        );
-                    })
-                )}
-            </div>
-        );
-    };
-
     const renderModal = () => {
         if (!selectedUser) return null;
         const isDoctor = selectedUser._type === 'doctor';
@@ -387,12 +314,6 @@ export default function UsersOverview() {
                     >
                         Manage Patients
                     </button>
-                    <button 
-                        onClick={() => setActiveTab('appointments')}
-                        className={`px-8 py-5 text-xs font-black uppercase tracking-widest whitespace-nowrap transition-colors ${activeTab === 'appointments' ? 'bg-slate-50 text-slate-900 border-b-2 border-slate-900' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50/50 border-b-2 border-transparent'}`}
-                    >
-                        Manage Appointments
-                    </button>
                 </div>
 
                 <div className="p-8 lg:p-12">
@@ -423,16 +344,6 @@ export default function UsersOverview() {
                                 <p className="text-slate-500 font-medium text-sm">Manage registered platform members and their access.</p>
                             </div>
                             {renderManageList(allPatients, 'patient')}
-                        </>
-                    )}
-
-                    {activeTab === 'appointments' && (
-                        <>
-                            <div className="mb-8">
-                                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Global Appointments</h2>
-                                <p className="text-slate-500 font-medium text-sm">Monitor all platform scheduling and session histories securely.</p>
-                            </div>
-                            {renderAppointmentsList()}
                         </>
                     )}
                 </div>
