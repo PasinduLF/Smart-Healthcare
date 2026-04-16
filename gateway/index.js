@@ -92,24 +92,28 @@ app.put('/api/doctors/verify/:id', authenticateToken, requireRole(['admin']), cr
 app.use('/api/patients', createProxyMiddleware({
     target: process.env.PATIENT_SERVICE_URL || 'https://smart-healthcare-lckn.onrender.com',
     changeOrigin: true,
+    pathRewrite: { '^/api/patients': '' }
 }));
 
 // Doctor Service (Public routes like list/login/register)
 app.use('/api/doctors', createProxyMiddleware({
     target: process.env.DOCTOR_SERVICE_URL || 'https://smart-healthcare-doctor-service.onrender.com',
     changeOrigin: true,
+    pathRewrite: { '^/api/doctors': '' }
 }));
 
 // Appointment Service
 app.use('/api/appointments', authenticateToken, createProxyMiddleware({
     target: process.env.APPOINTMENT_SERVICE_URL || 'http://localhost:3003',
     changeOrigin: true,
+    pathRewrite: { '^/api/appointments': '' }
 }));
 
 // Telemedicine Service
 app.use('/api/telemedicine', authenticateToken, createProxyMiddleware({
     target: process.env.TELEMEDICINE_SERVICE_URL || 'http://localhost:3004',
     changeOrigin: true,
+    pathRewrite: { '^/api/telemedicine': '' }
 }));
 
 // Payment Service
@@ -122,12 +126,14 @@ app.use('/api/payments/payhere/notify', createProxyMiddleware({
 app.use('/api/payments', authenticateToken, createProxyMiddleware({
     target: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3005',
     changeOrigin: true,
+    pathRewrite: { '^/api/payments': '' }
 }));
 
 // Notification Service (Internal access or triggered by webhook)
 app.use('/api/notifications', createProxyMiddleware({
     target: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3006',
     changeOrigin: true,
+    pathRewrite: { '^/api/notifications': '' }
 }));
 
 // AI Support — direct handler (avoids HPM path-rewrite issues)
@@ -167,6 +173,7 @@ app.post('/api/ai/support', (req, res) => {
 app.use('/api/ai', authenticateToken, createProxyMiddleware({
     target: process.env.AI_SERVICE_URL || 'https://smart-healthcare-1-morq.onrender.com',
     changeOrigin: true,
+    pathRewrite: { '^/api/ai': '' }
 }));
 
 // Start Gateway
