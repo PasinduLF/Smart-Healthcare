@@ -129,12 +129,17 @@ const jwt = require('jsonwebtoken');
 // Register new patient
 app.post('/register', async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, contactNumber } = req.body;
         const existingPatient = await Patient.findOne({ email });
         if (existingPatient) return res.status(400).json({ error: 'Email already exists' });
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newPatient = new Patient({ name, email, password: hashedPassword });
+        const newPatient = new Patient({ 
+            name, 
+            email, 
+            password: hashedPassword,
+            contactNumber: contactNumber || ''
+        });
         await newPatient.save();
 
         res.status(201).json({ message: 'Patient registered successfully', patient: { id: newPatient._id, name, email } });

@@ -123,15 +123,23 @@ app.get('/list', async (req, res) => {
 
 app.post('/register', async (req, res) => {
     try {
-        const { name, email, password, specialty, maxPatients } = req.body;
+        const { name, email, password, specialization, specialty, experience, contactNumber, maxPatients } = req.body;
         const existingDoc = await Doctor.findOne({ email });
         if (existingDoc) return res.status(400).json({ error: 'Email already exists' });
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newDoc = new Doctor({ name, email, password: hashedPassword, specialty, maxPatients });
+        const newDoc = new Doctor({ 
+            name, 
+            email, 
+            password: hashedPassword, 
+            specialty: specialty || specialization || '',
+            experience: Number(experience) || 0,
+            contactNumber: contactNumber || '',
+            maxPatients: maxPatients || 10
+        });
         await newDoc.save();
 
-        res.status(201).json({ message: 'Doctor registered, pending verification', doctor: { id: newDoc._id, name, email, specialty } });
+        res.status(201).json({ message: 'Doctor registered, pending verification', doctor: { id: newDoc._id, name, email, specialty: newDoc.specialty } });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

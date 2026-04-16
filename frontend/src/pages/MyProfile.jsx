@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+import { API_BASE_URL } from '../config/api';
 import { User, Mail, Phone, Clock3, Stethoscope, ShieldCheck, BadgeCheck, Save, ImagePlus, Lock, Languages, MapPin, ReceiptText } from 'lucide-react';
 
-const API_BASE = 'http://localhost:3000';
+const API_BASE = API_BASE_URL;
 
 const roleTheme = {
     patient: {
