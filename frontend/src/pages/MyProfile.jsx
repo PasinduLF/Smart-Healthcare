@@ -2,10 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import { API_BASE_URL } from '../config/api';
+import { getDoctorServiceUrl, getPatientServiceUrl, API_BASE_URL } from '../config/api';
 import { User, Mail, Phone, Clock3, Stethoscope, ShieldCheck, BadgeCheck, Save, ImagePlus, Lock, Languages, MapPin, ReceiptText } from 'lucide-react';
 
-const API_BASE = API_BASE_URL;
+// Helper uses the centralized config instead of hardcoded strings
 
 const roleTheme = {
     patient: {
@@ -58,10 +58,10 @@ export default function MyProfile() {
     const profileConfig = useMemo(() => {
         if (currentRole === 'doctor') {
             return {
-                getUrl: `${API_BASE}/api/doctors/profile/${user?.id}`,
-                putUrl: `${API_BASE}/api/doctors/profile/${user?.id}`,
-                avatarUrl: `${API_BASE}/api/doctors/profile/${user?.id}/avatar`,
-                passwordUrl: `${API_BASE}/api/doctors/change-password/${user?.id}`,
+                getUrl: getDoctorServiceUrl(`/profile/${user?.id}`),
+                putUrl: getDoctorServiceUrl(`/profile/${user?.id}`),
+                avatarUrl: getDoctorServiceUrl(`/profile/${user?.id}/avatar`),
+                passwordUrl: getDoctorServiceUrl(`/change-password/${user?.id}`),
                 toState: (data) => ({
                     name: data.name || '',
                     email: data.email || '',
@@ -91,10 +91,10 @@ export default function MyProfile() {
 
         if (currentRole === 'admin') {
             return {
-                getUrl: `${API_BASE}/api/patients/admin/profile/${user?.id}`,
-                putUrl: `${API_BASE}/api/patients/admin/profile/${user?.id}`,
-                avatarUrl: `${API_BASE}/api/patients/admin/profile/${user?.id}/avatar`,
-                passwordUrl: `${API_BASE}/api/patients/admin/change-password/${user?.id}`,
+                getUrl: getPatientServiceUrl(`/admin/profile/${user?.id}`),
+                putUrl: getPatientServiceUrl(`/admin/profile/${user?.id}`),
+                avatarUrl: getPatientServiceUrl(`/admin/profile/${user?.id}/avatar`),
+                passwordUrl: getPatientServiceUrl(`/admin/change-password/${user?.id}`),
                 toState: (data) => ({
                     name: data.name || '',
                     email: data.email || '',
@@ -109,14 +109,14 @@ export default function MyProfile() {
         }
 
         return {
-            getUrl: `${API_BASE}/api/patients/profile/${user?.id}`,
-            putUrl: `${API_BASE}/api/patients/profile/${user?.id}`,
-                avatarUrl: `${API_BASE}/api/patients/profile/${user?.id}/avatar`,
-                passwordUrl: `${API_BASE}/api/patients/change-password/${user?.id}`,
+            getUrl: getPatientServiceUrl(`/profile/${user?.id}`),
+            putUrl: getPatientServiceUrl(`/profile/${user?.id}`),
+            avatarUrl: getPatientServiceUrl(`/profile/${user?.id}/avatar`),
+            passwordUrl: getPatientServiceUrl(`/change-password/${user?.id}`),
             toState: (data) => ({
                 name: data.name || '',
                 email: data.email || '',
-                    avatarUrl: data.avatarUrl || '',
+                avatarUrl: data.avatarUrl || '',
                 age: data.age || '',
                 contactNumber: data.contactNumber || '',
                 createdAt: data.createdAt || ''
